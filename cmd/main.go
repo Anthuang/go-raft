@@ -69,7 +69,7 @@ func main() {
 		clients = append(clients, c)
 	}
 
-	r := server.NewReplica(*replicaID, clients, sugar)
+	r := server.NewReplica(int64(*replicaID), clients, sugar)
 	rs := server.RaftServer{R: r}
 
 	s := grpc.NewServer()

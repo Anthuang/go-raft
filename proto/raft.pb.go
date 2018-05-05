@@ -25,6 +25,7 @@ const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type VoteReq struct {
 	Id                   int64    `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
+	Term                 int64    `protobuf:"varint,2,opt,name=term" json:"term,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -34,7 +35,7 @@ func (m *VoteReq) Reset()         { *m = VoteReq{} }
 func (m *VoteReq) String() string { return proto.CompactTextString(m) }
 func (*VoteReq) ProtoMessage()    {}
 func (*VoteReq) Descriptor() ([]byte, []int) {
-	return fileDescriptor_raft_e6fba854bb67b96a, []int{0}
+	return fileDescriptor_raft_8073f93779363d24, []int{0}
 }
 func (m *VoteReq) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_VoteReq.Unmarshal(m, b)
@@ -61,9 +62,15 @@ func (m *VoteReq) GetId() int64 {
 	return 0
 }
 
+func (m *VoteReq) GetTerm() int64 {
+	if m != nil {
+		return m.Term
+	}
+	return 0
+}
+
 type VoteResp struct {
 	Ok                   bool     `protobuf:"varint,1,opt,name=ok" json:"ok,omitempty"`
-	Term                 int64    `protobuf:"varint,2,opt,name=term" json:"term,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -73,7 +80,7 @@ func (m *VoteResp) Reset()         { *m = VoteResp{} }
 func (m *VoteResp) String() string { return proto.CompactTextString(m) }
 func (*VoteResp) ProtoMessage()    {}
 func (*VoteResp) Descriptor() ([]byte, []int) {
-	return fileDescriptor_raft_e6fba854bb67b96a, []int{1}
+	return fileDescriptor_raft_8073f93779363d24, []int{1}
 }
 func (m *VoteResp) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_VoteResp.Unmarshal(m, b)
@@ -100,16 +107,79 @@ func (m *VoteResp) GetOk() bool {
 	return false
 }
 
-func (m *VoteResp) GetTerm() int64 {
+type HeartBeatReq struct {
+	Id                   int64    `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *HeartBeatReq) Reset()         { *m = HeartBeatReq{} }
+func (m *HeartBeatReq) String() string { return proto.CompactTextString(m) }
+func (*HeartBeatReq) ProtoMessage()    {}
+func (*HeartBeatReq) Descriptor() ([]byte, []int) {
+	return fileDescriptor_raft_8073f93779363d24, []int{2}
+}
+func (m *HeartBeatReq) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_HeartBeatReq.Unmarshal(m, b)
+}
+func (m *HeartBeatReq) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_HeartBeatReq.Marshal(b, m, deterministic)
+}
+func (dst *HeartBeatReq) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_HeartBeatReq.Merge(dst, src)
+}
+func (m *HeartBeatReq) XXX_Size() int {
+	return xxx_messageInfo_HeartBeatReq.Size(m)
+}
+func (m *HeartBeatReq) XXX_DiscardUnknown() {
+	xxx_messageInfo_HeartBeatReq.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_HeartBeatReq proto.InternalMessageInfo
+
+func (m *HeartBeatReq) GetId() int64 {
 	if m != nil {
-		return m.Term
+		return m.Id
 	}
 	return 0
 }
 
+type HeartBeatResp struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *HeartBeatResp) Reset()         { *m = HeartBeatResp{} }
+func (m *HeartBeatResp) String() string { return proto.CompactTextString(m) }
+func (*HeartBeatResp) ProtoMessage()    {}
+func (*HeartBeatResp) Descriptor() ([]byte, []int) {
+	return fileDescriptor_raft_8073f93779363d24, []int{3}
+}
+func (m *HeartBeatResp) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_HeartBeatResp.Unmarshal(m, b)
+}
+func (m *HeartBeatResp) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_HeartBeatResp.Marshal(b, m, deterministic)
+}
+func (dst *HeartBeatResp) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_HeartBeatResp.Merge(dst, src)
+}
+func (m *HeartBeatResp) XXX_Size() int {
+	return xxx_messageInfo_HeartBeatResp.Size(m)
+}
+func (m *HeartBeatResp) XXX_DiscardUnknown() {
+	xxx_messageInfo_HeartBeatResp.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_HeartBeatResp proto.InternalMessageInfo
+
 func init() {
 	proto.RegisterType((*VoteReq)(nil), "proto.VoteReq")
 	proto.RegisterType((*VoteResp)(nil), "proto.VoteResp")
+	proto.RegisterType((*HeartBeatReq)(nil), "proto.HeartBeatReq")
+	proto.RegisterType((*HeartBeatResp)(nil), "proto.HeartBeatResp")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -123,6 +193,7 @@ const _ = grpc.SupportPackageIsVersion4
 // Client API for Raft service
 
 type RaftClient interface {
+	HeartBeat(ctx context.Context, in *HeartBeatReq, opts ...grpc.CallOption) (*HeartBeatResp, error)
 	Vote(ctx context.Context, in *VoteReq, opts ...grpc.CallOption) (*VoteResp, error)
 }
 
@@ -132,6 +203,15 @@ type raftClient struct {
 
 func NewRaftClient(cc *grpc.ClientConn) RaftClient {
 	return &raftClient{cc}
+}
+
+func (c *raftClient) HeartBeat(ctx context.Context, in *HeartBeatReq, opts ...grpc.CallOption) (*HeartBeatResp, error) {
+	out := new(HeartBeatResp)
+	err := grpc.Invoke(ctx, "/proto.Raft/HeartBeat", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *raftClient) Vote(ctx context.Context, in *VoteReq, opts ...grpc.CallOption) (*VoteResp, error) {
@@ -146,11 +226,30 @@ func (c *raftClient) Vote(ctx context.Context, in *VoteReq, opts ...grpc.CallOpt
 // Server API for Raft service
 
 type RaftServer interface {
+	HeartBeat(context.Context, *HeartBeatReq) (*HeartBeatResp, error)
 	Vote(context.Context, *VoteReq) (*VoteResp, error)
 }
 
 func RegisterRaftServer(s *grpc.Server, srv RaftServer) {
 	s.RegisterService(&_Raft_serviceDesc, srv)
+}
+
+func _Raft_HeartBeat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HeartBeatReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RaftServer).HeartBeat(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/proto.Raft/HeartBeat",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RaftServer).HeartBeat(ctx, req.(*HeartBeatReq))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _Raft_Vote_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -176,6 +275,10 @@ var _Raft_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*RaftServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "HeartBeat",
+			Handler:    _Raft_HeartBeat_Handler,
+		},
+		{
 			MethodName: "Vote",
 			Handler:    _Raft_Vote_Handler,
 		},
@@ -184,17 +287,20 @@ var _Raft_serviceDesc = grpc.ServiceDesc{
 	Metadata: "proto/raft.proto",
 }
 
-func init() { proto.RegisterFile("proto/raft.proto", fileDescriptor_raft_e6fba854bb67b96a) }
+func init() { proto.RegisterFile("proto/raft.proto", fileDescriptor_raft_8073f93779363d24) }
 
-var fileDescriptor_raft_e6fba854bb67b96a = []byte{
-	// 136 bytes of a gzipped FileDescriptorProto
+var fileDescriptor_raft_8073f93779363d24 = []byte{
+	// 178 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x28, 0x28, 0xca, 0x2f,
-	0xc9, 0xd7, 0x2f, 0x4a, 0x4c, 0x2b, 0xd1, 0x03, 0x33, 0x85, 0x58, 0xc1, 0x94, 0x92, 0x24, 0x17,
+	0xc9, 0xd7, 0x2f, 0x4a, 0x4c, 0x2b, 0xd1, 0x03, 0x33, 0x85, 0x58, 0xc1, 0x94, 0x92, 0x2e, 0x17,
 	0x7b, 0x58, 0x7e, 0x49, 0x6a, 0x50, 0x6a, 0xa1, 0x10, 0x1f, 0x17, 0x53, 0x66, 0x8a, 0x04, 0xa3,
-	0x02, 0xa3, 0x06, 0x73, 0x10, 0x53, 0x66, 0x8a, 0x92, 0x1e, 0x17, 0x07, 0x44, 0xaa, 0xb8, 0x00,
-	0x24, 0x97, 0x9f, 0x0d, 0x96, 0xe3, 0x08, 0x62, 0xca, 0xcf, 0x16, 0x12, 0xe2, 0x62, 0x29, 0x49,
-	0x2d, 0xca, 0x95, 0x60, 0x02, 0xab, 0x06, 0xb3, 0x8d, 0x0c, 0xb9, 0x58, 0x82, 0x12, 0xd3, 0x4a,
-	0x84, 0x34, 0xb9, 0x58, 0x40, 0xfa, 0x84, 0xf8, 0x20, 0x36, 0xe9, 0x41, 0xcd, 0x97, 0xe2, 0x47,
-	0xe1, 0x17, 0x17, 0x28, 0x31, 0x24, 0xb1, 0x81, 0x45, 0x8c, 0x01, 0x01, 0x00, 0x00, 0xff, 0xff,
-	0x25, 0x25, 0x56, 0xe2, 0x9f, 0x00, 0x00, 0x00,
+	0x02, 0xa3, 0x06, 0x73, 0x10, 0x53, 0x66, 0x8a, 0x90, 0x10, 0x17, 0x4b, 0x49, 0x6a, 0x51, 0xae,
+	0x04, 0x13, 0x58, 0x04, 0xcc, 0x56, 0x92, 0xe2, 0xe2, 0x80, 0x28, 0x2f, 0x2e, 0x00, 0xa9, 0xcf,
+	0xcf, 0x06, 0xab, 0xe7, 0x08, 0x62, 0xca, 0xcf, 0x56, 0x92, 0xe3, 0xe2, 0xf1, 0x48, 0x4d, 0x2c,
+	0x2a, 0x71, 0x4a, 0x4d, 0x2c, 0xc1, 0x62, 0x9e, 0x12, 0x3f, 0x17, 0x2f, 0x92, 0x7c, 0x71, 0x81,
+	0x51, 0x36, 0x17, 0x4b, 0x50, 0x62, 0x5a, 0x89, 0x90, 0x05, 0x17, 0x27, 0x5c, 0x42, 0x48, 0x18,
+	0xe2, 0x3e, 0x3d, 0x64, 0xa3, 0xa4, 0x44, 0x30, 0x05, 0x8b, 0x0b, 0x94, 0x18, 0x84, 0x34, 0xb9,
+	0x58, 0x40, 0xce, 0x11, 0xe2, 0x83, 0xca, 0x43, 0xbd, 0x22, 0xc5, 0x8f, 0xc2, 0x07, 0x29, 0x4d,
+	0x62, 0x03, 0x8b, 0x18, 0x03, 0x02, 0x00, 0x00, 0xff, 0xff, 0x5a, 0x42, 0x16, 0xa9, 0x0a, 0x01,
+	0x00, 0x00,
 }

@@ -3,14 +3,21 @@ syntax = "proto3";
 package proto;
 
 service Raft {
+  rpc HeartBeat(HeartBeatReq) returns (HeartBeatResp) {}
   rpc Vote(VoteReq) returns (VoteResp) {}
 }
 
 message VoteReq {
   int64 id = 1;
+  int64 term = 2;
 }
 
 message VoteResp {
   bool ok = 1;
-  int64 term = 2;
 }
+
+message HeartBeatReq {
+  int64 id = 1;
+}
+
+message HeartBeatResp {}
