@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package proto;
+
+service Raft {
+  rpc Vote(VoteReq) returns (VoteResp) {}
+}
+
+message VoteReq {
+  int64 id = 1;
+}
+
+message VoteResp {
+  bool ok = 1;
+  int64 term = 2;
+}
