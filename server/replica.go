@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/anthuang/go-raft/proto"
@@ -23,16 +24,20 @@ type Replica struct {
 	log          []state
 	logger       *zap.SugaredLogger
 	majority     int
+	mu           sync.Mutex
 	nextIndex    []int
 	peers        []proto.RaftClient
+	peersAddrs   []string
 	pingInterval time.Duration
 	term         int64
 	timeout      time.Duration
 	voted        map[int64]bool
+
+	initChannel chan bool
 }
 
 // NewReplica creates a new Replica object
-func NewReplica(id int64, peers []proto.RaftClient, logger *zap.SugaredLogger) *Replica {
+func NewReplica(id int64, peers []proto.RaftClient, peersAddrs []string, logger *zap.SugaredLogger) *Replica {
 	r := &Replica{
 		id:           id,
 		lastCommit:   -1,
@@ -41,15 +46,17 @@ func NewReplica(id int64, peers []proto.RaftClient, logger *zap.SugaredLogger) *
 		log:          make([]state, 0),
 		logger:       logger,
 		majority:     len(peers)/2 + 1,
+		mu:           sync.Mutex{},
 		nextIndex:    make([]int, len(peers)),
 		peers:        peers,
+		peersAddrs:   peersAddrs,
 		pingInterval: time.Duration(100) * time.Millisecond,
 		term:         0,
 		timeout:      time.Duration(id*50+1000) * time.Millisecond,
 		voted:        make(map[int64]bool),
-	}
 
-	r.logger.Infof("Initiating node %d", r.id)
+		initChannel: make(chan bool),
+	}
 
 	go r.run()
 
@@ -58,22 +65,54 @@ func NewReplica(id int64, peers []proto.RaftClient, logger *zap.SugaredLogger) *
 
 func (r *Replica) run() {
 	// Main replica logic
+	r.init()
+
 	for {
 		t := time.Now()
-		if t.Sub(r.lastPinged) > r.timeout {
-			// Initiate new election
-			r.logger.Infof("Initiating election term %d", r.term)
-			r.term++
-			r.leader = -1
-			r.vote()
-		}
 
+		r.mu.Lock()
 		if r.leader == r.id && t.Sub(r.lastPinged) > r.pingInterval {
 			// Send heart beats
 			r.lastPinged = t
 			r.heartbeat()
 		}
+
+		if r.leader != r.id && t.Sub(r.lastPinged) > r.timeout {
+			// Initiate new election
+			r.logger.Infof("Initiating election term %d", r.term+1)
+			r.term++
+			r.leader = -1
+			r.mu.Unlock()
+			r.vote()
+		} else {
+			r.mu.Unlock()
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
+}
+
+func (r *Replica) init() {
+	r.logger.Infof("Initializing node %d", r.id)
+	done := make(chan bool)
+	for i := 0; i < len(r.peers); i++ {
+		if i == int(r.id) {
+			continue
+		}
+		go func(i int) {
+			for {
+				_, err := r.peers[i].HeartBeat(context.Background(), &proto.HeartBeatReq{})
+				if err == nil {
+					done <- true
+					break
+				}
+			}
+		}(i)
+	}
+
+	for i := 0; i < len(r.peers)-1; i++ {
+		<-done
+	}
+	r.logger.Infof("Done initializing node %d", r.id)
 }
 
 func (r *Replica) vote() {
@@ -103,6 +142,9 @@ func (r *Replica) vote() {
 		doneNum++
 	}
 
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if succNum >= r.majority {
 		// Become leader
 		r.logger.Infof("%d is now the leader", r.id)
@@ -112,9 +154,6 @@ func (r *Replica) vote() {
 		for i := range r.nextIndex {
 			r.nextIndex[i] = len(r.log)
 		}
-
-		// Let followers know
-		r.heartbeat()
 	} else {
 		r.logger.Infof("Election attempt failed")
 	}

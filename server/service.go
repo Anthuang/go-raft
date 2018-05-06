@@ -15,7 +15,9 @@ type RaftServer struct {
 
 // AppendEntry appends an entry to the replica's log
 func (s RaftServer) AppendEntry(ctx context.Context, req *proto.AppendEntryReq) (*proto.AppendEntryResp, error) {
-	s.R.lastPinged = time.Now()
+	s.R.mu.Lock()
+	defer s.R.mu.Unlock()
+
 	s.R.lastCommit = req.LastCommit
 	s.R.setLeader(req.Id)
 
@@ -38,18 +40,27 @@ func (s RaftServer) AppendEntry(ctx context.Context, req *proto.AppendEntryReq) 
 
 // HeartBeat pings replicas
 func (s RaftServer) HeartBeat(ctx context.Context, req *proto.HeartBeatReq) (*proto.HeartBeatResp, error) {
-	s.R.lastPinged = time.Now()
-	s.R.term = req.Term
-	s.R.lastCommit = req.LastCommit
-	s.R.setLeader(req.Id)
+	s.R.mu.Lock()
+	defer s.R.mu.Unlock()
 
-	// s.R.logger.Infof("Received heartbeat from %d", req.Id)
+	s.R.lastPinged = time.Now()
+
+	if req.Term != 0 {
+		s.R.term = req.Term
+		s.R.lastCommit = req.LastCommit
+		s.R.setLeader(req.Id)
+
+		// s.R.logger.Infof("Received heartbeat from %d", req.Id)
+	}
 
 	return &proto.HeartBeatResp{}, nil
 }
 
 // Vote attempts to elect current replica as leader
 func (s RaftServer) Vote(ctx context.Context, req *proto.VoteReq) (*proto.VoteResp, error) {
+	s.R.mu.Lock()
+	defer s.R.mu.Unlock()
+
 	s.R.lastPinged = time.Now()
 
 	if req.Term >= s.R.term && !s.R.voted[req.Term] {
