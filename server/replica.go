@@ -43,7 +43,7 @@ func NewReplica(id int64, peers []proto.RaftClient, logger *zap.SugaredLogger) *
 		majority:     len(peers)/2 + 1,
 		nextIndex:    make([]int, len(peers)),
 		peers:        peers,
-		pingInterval: time.Duration(50) * time.Millisecond,
+		pingInterval: time.Duration(100) * time.Millisecond,
 		term:         0,
 		timeout:      time.Duration(id*50+1000) * time.Millisecond,
 		voted:        make(map[int64]bool),
@@ -86,10 +86,10 @@ func (r *Replica) vote() {
 		go func(i int, p proto.RaftClient) {
 			_, err := p.Vote(context.Background(), &proto.VoteReq{Id: r.id, Term: r.term})
 			if err != nil {
-				r.logger.Infof("%d returned failure for term %d", i, r.term)
+				// r.logger.Infof("%d returned failure for term %d", i, r.term)
 				done <- false
 			} else {
-				r.logger.Infof("%d returned success for term %d", i, r.term)
+				// r.logger.Infof("%d returned success for term %d", i, r.term)
 				done <- true
 			}
 		}(i, p)

@@ -41,6 +41,8 @@ func (s RaftServer) HeartBeat(ctx context.Context, req *proto.HeartBeatReq) (*pr
 	s.R.lastPinged = time.Now()
 	s.R.setLeader(req.Id)
 
+	// s.R.logger.Infof("Received heartbeat from %d", req.Id)
+
 	return &proto.HeartBeatResp{}, nil
 }
 
@@ -49,12 +51,13 @@ func (s RaftServer) Vote(ctx context.Context, req *proto.VoteReq) (*proto.VoteRe
 	s.R.lastPinged = time.Now()
 
 	if req.Term >= s.R.term && !s.R.voted[req.Term] {
-		s.R.logger.Infof("Accepting vote request from %d for term %d", req.Id, s.R.term)
+		// s.R.logger.Infof("Accepting vote request from %d for term %d", req.Id, s.R.term)
 		s.R.leader = -1
+		s.R.term = req.Term
 		s.R.voted[req.Term] = true
 		return &proto.VoteResp{}, nil
 	}
 
-	s.R.logger.Infof("Rejecting vote request from %d for term %d", req.Id, s.R.term)
+	// s.R.logger.Infof("Rejecting vote request from %d for term %d", req.Id, s.R.term)
 	return &proto.VoteResp{}, errors.New("Rejecting vote request")
 }
