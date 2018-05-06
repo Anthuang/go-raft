@@ -28,7 +28,7 @@ type Replica struct {
 	pingInterval time.Duration
 	term         int64
 	timeout      time.Duration
-	voted        bool
+	voted        map[int64]bool
 }
 
 // NewReplica creates a new Replica object
@@ -46,7 +46,7 @@ func NewReplica(id int64, peers []proto.RaftClient, logger *zap.SugaredLogger) *
 		pingInterval: time.Duration(50) * time.Millisecond,
 		term:         0,
 		timeout:      time.Duration(id*50+1000) * time.Millisecond,
-		voted:        false,
+		voted:        make(map[int64]bool),
 	}
 
 	r.logger.Infof("Initiating node %d", r.id)
@@ -82,14 +82,15 @@ func (r *Replica) vote() {
 	doneNum := 0
 	succNum := 0
 
-	r.voted = true
 	for i, p := range r.peers {
 		go func(i int, p proto.RaftClient) {
-			resp, err := p.Vote(context.Background(), &proto.VoteReq{Id: r.id, Term: r.term})
-			if err == nil || (resp != nil && resp.Ok) {
-				done <- true
-			} else {
+			_, err := p.Vote(context.Background(), &proto.VoteReq{Id: r.id, Term: r.term})
+			if err != nil {
+				r.logger.Infof("%d returned failure for term %d", i, r.term)
 				done <- false
+			} else {
+				r.logger.Infof("%d returned success for term %d", i, r.term)
+				done <- true
 			}
 		}(i, p)
 	}

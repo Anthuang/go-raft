@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/anthuang/go-raft/proto"
@@ -53,11 +54,13 @@ func (s RaftServer) HeartBeat(ctx context.Context, req *proto.HeartBeatReq) (*pr
 func (s RaftServer) Vote(ctx context.Context, req *proto.VoteReq) (*proto.VoteResp, error) {
 	s.R.lastPinged = time.Now()
 
-	if req.Term >= s.R.term && !s.R.voted {
+	if req.Term >= s.R.term && !s.R.voted[req.Term] {
+		s.R.logger.Infof("Accepting vote request from %d for term %d", req.Id, s.R.term)
 		s.R.leader = -1
-		s.R.voted = true
-		return &proto.VoteResp{Ok: true}, nil
+		s.R.voted[req.Term] = true
+		return &proto.VoteResp{}, nil
 	}
 
-	return &proto.VoteResp{Ok: false}, nil
+	s.R.logger.Infof("Rejecting vote request from %d for term %d", req.Id, s.R.term)
+	return &proto.VoteResp{}, errors.New("Rejecting vote request")
 }

@@ -13,9 +13,7 @@ message VoteReq {
   int64 term = 2;
 }
 
-message VoteResp {
-  bool ok = 1;
-}
+message VoteResp {}
 
 message HeartBeatReq {
   int64 id = 1;
