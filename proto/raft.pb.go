@@ -35,7 +35,7 @@ func (m *VoteReq) Reset()         { *m = VoteReq{} }
 func (m *VoteReq) String() string { return proto.CompactTextString(m) }
 func (*VoteReq) ProtoMessage()    {}
 func (*VoteReq) Descriptor() ([]byte, []int) {
-	return fileDescriptor_raft_8073f93779363d24, []int{0}
+	return fileDescriptor_raft_99c116e6f156da3d, []int{0}
 }
 func (m *VoteReq) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_VoteReq.Unmarshal(m, b)
@@ -80,7 +80,7 @@ func (m *VoteResp) Reset()         { *m = VoteResp{} }
 func (m *VoteResp) String() string { return proto.CompactTextString(m) }
 func (*VoteResp) ProtoMessage()    {}
 func (*VoteResp) Descriptor() ([]byte, []int) {
-	return fileDescriptor_raft_8073f93779363d24, []int{1}
+	return fileDescriptor_raft_99c116e6f156da3d, []int{1}
 }
 func (m *VoteResp) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_VoteResp.Unmarshal(m, b)
@@ -109,6 +109,7 @@ func (m *VoteResp) GetOk() bool {
 
 type HeartBeatReq struct {
 	Id                   int64    `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
+	LastCommit           int64    `protobuf:"varint,2,opt,name=lastCommit" json:"lastCommit,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -118,7 +119,7 @@ func (m *HeartBeatReq) Reset()         { *m = HeartBeatReq{} }
 func (m *HeartBeatReq) String() string { return proto.CompactTextString(m) }
 func (*HeartBeatReq) ProtoMessage()    {}
 func (*HeartBeatReq) Descriptor() ([]byte, []int) {
-	return fileDescriptor_raft_8073f93779363d24, []int{2}
+	return fileDescriptor_raft_99c116e6f156da3d, []int{2}
 }
 func (m *HeartBeatReq) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_HeartBeatReq.Unmarshal(m, b)
@@ -145,6 +146,13 @@ func (m *HeartBeatReq) GetId() int64 {
 	return 0
 }
 
+func (m *HeartBeatReq) GetLastCommit() int64 {
+	if m != nil {
+		return m.LastCommit
+	}
+	return 0
+}
+
 type HeartBeatResp struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -155,7 +163,7 @@ func (m *HeartBeatResp) Reset()         { *m = HeartBeatResp{} }
 func (m *HeartBeatResp) String() string { return proto.CompactTextString(m) }
 func (*HeartBeatResp) ProtoMessage()    {}
 func (*HeartBeatResp) Descriptor() ([]byte, []int) {
-	return fileDescriptor_raft_8073f93779363d24, []int{3}
+	return fileDescriptor_raft_99c116e6f156da3d, []int{3}
 }
 func (m *HeartBeatResp) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_HeartBeatResp.Unmarshal(m, b)
@@ -175,11 +183,168 @@ func (m *HeartBeatResp) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_HeartBeatResp proto.InternalMessageInfo
 
+type Entry struct {
+	Command              string   `protobuf:"bytes,1,opt,name=command" json:"command,omitempty"`
+	Index                int64    `protobuf:"varint,2,opt,name=index" json:"index,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *Entry) Reset()         { *m = Entry{} }
+func (m *Entry) String() string { return proto.CompactTextString(m) }
+func (*Entry) ProtoMessage()    {}
+func (*Entry) Descriptor() ([]byte, []int) {
+	return fileDescriptor_raft_99c116e6f156da3d, []int{4}
+}
+func (m *Entry) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Entry.Unmarshal(m, b)
+}
+func (m *Entry) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Entry.Marshal(b, m, deterministic)
+}
+func (dst *Entry) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Entry.Merge(dst, src)
+}
+func (m *Entry) XXX_Size() int {
+	return xxx_messageInfo_Entry.Size(m)
+}
+func (m *Entry) XXX_DiscardUnknown() {
+	xxx_messageInfo_Entry.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Entry proto.InternalMessageInfo
+
+func (m *Entry) GetCommand() string {
+	if m != nil {
+		return m.Command
+	}
+	return ""
+}
+
+func (m *Entry) GetIndex() int64 {
+	if m != nil {
+		return m.Index
+	}
+	return 0
+}
+
+type AppendEntryReq struct {
+	Id                   int64    `protobuf:"varint,1,opt,name=id" json:"id,omitempty"`
+	Index                int64    `protobuf:"varint,2,opt,name=index" json:"index,omitempty"`
+	LastCommit           int64    `protobuf:"varint,3,opt,name=lastCommit" json:"lastCommit,omitempty"`
+	Term                 int64    `protobuf:"varint,4,opt,name=term" json:"term,omitempty"`
+	Entries              []*Entry `protobuf:"bytes,5,rep,name=entries" json:"entries,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *AppendEntryReq) Reset()         { *m = AppendEntryReq{} }
+func (m *AppendEntryReq) String() string { return proto.CompactTextString(m) }
+func (*AppendEntryReq) ProtoMessage()    {}
+func (*AppendEntryReq) Descriptor() ([]byte, []int) {
+	return fileDescriptor_raft_99c116e6f156da3d, []int{5}
+}
+func (m *AppendEntryReq) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_AppendEntryReq.Unmarshal(m, b)
+}
+func (m *AppendEntryReq) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_AppendEntryReq.Marshal(b, m, deterministic)
+}
+func (dst *AppendEntryReq) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AppendEntryReq.Merge(dst, src)
+}
+func (m *AppendEntryReq) XXX_Size() int {
+	return xxx_messageInfo_AppendEntryReq.Size(m)
+}
+func (m *AppendEntryReq) XXX_DiscardUnknown() {
+	xxx_messageInfo_AppendEntryReq.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AppendEntryReq proto.InternalMessageInfo
+
+func (m *AppendEntryReq) GetId() int64 {
+	if m != nil {
+		return m.Id
+	}
+	return 0
+}
+
+func (m *AppendEntryReq) GetIndex() int64 {
+	if m != nil {
+		return m.Index
+	}
+	return 0
+}
+
+func (m *AppendEntryReq) GetLastCommit() int64 {
+	if m != nil {
+		return m.LastCommit
+	}
+	return 0
+}
+
+func (m *AppendEntryReq) GetTerm() int64 {
+	if m != nil {
+		return m.Term
+	}
+	return 0
+}
+
+func (m *AppendEntryReq) GetEntries() []*Entry {
+	if m != nil {
+		return m.Entries
+	}
+	return nil
+}
+
+type AppendEntryResp struct {
+	Ok                   bool     `protobuf:"varint,1,opt,name=ok" json:"ok,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *AppendEntryResp) Reset()         { *m = AppendEntryResp{} }
+func (m *AppendEntryResp) String() string { return proto.CompactTextString(m) }
+func (*AppendEntryResp) ProtoMessage()    {}
+func (*AppendEntryResp) Descriptor() ([]byte, []int) {
+	return fileDescriptor_raft_99c116e6f156da3d, []int{6}
+}
+func (m *AppendEntryResp) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_AppendEntryResp.Unmarshal(m, b)
+}
+func (m *AppendEntryResp) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_AppendEntryResp.Marshal(b, m, deterministic)
+}
+func (dst *AppendEntryResp) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AppendEntryResp.Merge(dst, src)
+}
+func (m *AppendEntryResp) XXX_Size() int {
+	return xxx_messageInfo_AppendEntryResp.Size(m)
+}
+func (m *AppendEntryResp) XXX_DiscardUnknown() {
+	xxx_messageInfo_AppendEntryResp.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AppendEntryResp proto.InternalMessageInfo
+
+func (m *AppendEntryResp) GetOk() bool {
+	if m != nil {
+		return m.Ok
+	}
+	return false
+}
+
 func init() {
 	proto.RegisterType((*VoteReq)(nil), "proto.VoteReq")
 	proto.RegisterType((*VoteResp)(nil), "proto.VoteResp")
 	proto.RegisterType((*HeartBeatReq)(nil), "proto.HeartBeatReq")
 	proto.RegisterType((*HeartBeatResp)(nil), "proto.HeartBeatResp")
+	proto.RegisterType((*Entry)(nil), "proto.Entry")
+	proto.RegisterType((*AppendEntryReq)(nil), "proto.AppendEntryReq")
+	proto.RegisterType((*AppendEntryResp)(nil), "proto.AppendEntryResp")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -193,6 +358,7 @@ const _ = grpc.SupportPackageIsVersion4
 // Client API for Raft service
 
 type RaftClient interface {
+	AppendEntry(ctx context.Context, in *AppendEntryReq, opts ...grpc.CallOption) (*AppendEntryResp, error)
 	HeartBeat(ctx context.Context, in *HeartBeatReq, opts ...grpc.CallOption) (*HeartBeatResp, error)
 	Vote(ctx context.Context, in *VoteReq, opts ...grpc.CallOption) (*VoteResp, error)
 }
@@ -203,6 +369,15 @@ type raftClient struct {
 
 func NewRaftClient(cc *grpc.ClientConn) RaftClient {
 	return &raftClient{cc}
+}
+
+func (c *raftClient) AppendEntry(ctx context.Context, in *AppendEntryReq, opts ...grpc.CallOption) (*AppendEntryResp, error) {
+	out := new(AppendEntryResp)
+	err := grpc.Invoke(ctx, "/proto.Raft/AppendEntry", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *raftClient) HeartBeat(ctx context.Context, in *HeartBeatReq, opts ...grpc.CallOption) (*HeartBeatResp, error) {
@@ -226,12 +401,31 @@ func (c *raftClient) Vote(ctx context.Context, in *VoteReq, opts ...grpc.CallOpt
 // Server API for Raft service
 
 type RaftServer interface {
+	AppendEntry(context.Context, *AppendEntryReq) (*AppendEntryResp, error)
 	HeartBeat(context.Context, *HeartBeatReq) (*HeartBeatResp, error)
 	Vote(context.Context, *VoteReq) (*VoteResp, error)
 }
 
 func RegisterRaftServer(s *grpc.Server, srv RaftServer) {
 	s.RegisterService(&_Raft_serviceDesc, srv)
+}
+
+func _Raft_AppendEntry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AppendEntryReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RaftServer).AppendEntry(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/proto.Raft/AppendEntry",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RaftServer).AppendEntry(ctx, req.(*AppendEntryReq))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _Raft_HeartBeat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -275,6 +469,10 @@ var _Raft_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*RaftServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "AppendEntry",
+			Handler:    _Raft_AppendEntry_Handler,
+		},
+		{
 			MethodName: "HeartBeat",
 			Handler:    _Raft_HeartBeat_Handler,
 		},
@@ -287,20 +485,28 @@ var _Raft_serviceDesc = grpc.ServiceDesc{
 	Metadata: "proto/raft.proto",
 }
 
-func init() { proto.RegisterFile("proto/raft.proto", fileDescriptor_raft_8073f93779363d24) }
+func init() { proto.RegisterFile("proto/raft.proto", fileDescriptor_raft_99c116e6f156da3d) }
 
-var fileDescriptor_raft_8073f93779363d24 = []byte{
-	// 178 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x28, 0x28, 0xca, 0x2f,
-	0xc9, 0xd7, 0x2f, 0x4a, 0x4c, 0x2b, 0xd1, 0x03, 0x33, 0x85, 0x58, 0xc1, 0x94, 0x92, 0x2e, 0x17,
-	0x7b, 0x58, 0x7e, 0x49, 0x6a, 0x50, 0x6a, 0xa1, 0x10, 0x1f, 0x17, 0x53, 0x66, 0x8a, 0x04, 0xa3,
-	0x02, 0xa3, 0x06, 0x73, 0x10, 0x53, 0x66, 0x8a, 0x90, 0x10, 0x17, 0x4b, 0x49, 0x6a, 0x51, 0xae,
-	0x04, 0x13, 0x58, 0x04, 0xcc, 0x56, 0x92, 0xe2, 0xe2, 0x80, 0x28, 0x2f, 0x2e, 0x00, 0xa9, 0xcf,
-	0xcf, 0x06, 0xab, 0xe7, 0x08, 0x62, 0xca, 0xcf, 0x56, 0x92, 0xe3, 0xe2, 0xf1, 0x48, 0x4d, 0x2c,
-	0x2a, 0x71, 0x4a, 0x4d, 0x2c, 0xc1, 0x62, 0x9e, 0x12, 0x3f, 0x17, 0x2f, 0x92, 0x7c, 0x71, 0x81,
-	0x51, 0x36, 0x17, 0x4b, 0x50, 0x62, 0x5a, 0x89, 0x90, 0x05, 0x17, 0x27, 0x5c, 0x42, 0x48, 0x18,
-	0xe2, 0x3e, 0x3d, 0x64, 0xa3, 0xa4, 0x44, 0x30, 0x05, 0x8b, 0x0b, 0x94, 0x18, 0x84, 0x34, 0xb9,
-	0x58, 0x40, 0xce, 0x11, 0xe2, 0x83, 0xca, 0x43, 0xbd, 0x22, 0xc5, 0x8f, 0xc2, 0x07, 0x29, 0x4d,
-	0x62, 0x03, 0x8b, 0x18, 0x03, 0x02, 0x00, 0x00, 0xff, 0xff, 0x5a, 0x42, 0x16, 0xa9, 0x0a, 0x01,
+var fileDescriptor_raft_99c116e6f156da3d = []byte{
+	// 306 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x52, 0xc1, 0x4e, 0x83, 0x40,
+	0x14, 0x14, 0x0a, 0xb6, 0x7d, 0xad, 0x60, 0x9e, 0xd5, 0x10, 0x0e, 0xa6, 0xee, 0xc1, 0xd4, 0x83,
+	0x35, 0xa9, 0x07, 0x3d, 0x35, 0x51, 0x63, 0xe2, 0x99, 0x83, 0xf7, 0x55, 0xb6, 0x09, 0xa9, 0xb0,
+	0xeb, 0xf2, 0x0e, 0xfa, 0x1b, 0xfe, 0x86, 0x3f, 0x69, 0x58, 0xb6, 0x15, 0x5a, 0x4e, 0xec, 0x9b,
+	0x9d, 0x19, 0x86, 0x79, 0xc0, 0xb1, 0xd2, 0x92, 0xe4, 0x8d, 0xe6, 0x2b, 0x9a, 0x9b, 0x23, 0xfa,
+	0xe6, 0xc1, 0xae, 0xa1, 0xff, 0x2a, 0x49, 0x24, 0xe2, 0x13, 0x03, 0x70, 0xb3, 0x34, 0x72, 0xa6,
+	0xce, 0xac, 0x97, 0xb8, 0x59, 0x8a, 0x08, 0x1e, 0x09, 0x9d, 0x47, 0xae, 0x41, 0xcc, 0x99, 0xc5,
+	0x30, 0xa8, 0xe9, 0xa5, 0xaa, 0xf8, 0x72, 0x6d, 0xf8, 0x83, 0xc4, 0x95, 0x6b, 0xb6, 0x84, 0xf1,
+	0x8b, 0xe0, 0x9a, 0x1e, 0x05, 0xa7, 0x2e, 0xbf, 0x73, 0x80, 0x0f, 0x5e, 0xd2, 0x93, 0xcc, 0xf3,
+	0x8c, 0xac, 0x6b, 0x03, 0x61, 0x21, 0x1c, 0x35, 0xf4, 0xa5, 0x62, 0x77, 0xe0, 0x3f, 0x17, 0xa4,
+	0xbf, 0x31, 0x82, 0xfe, 0xbb, 0xcc, 0x73, 0x5e, 0xd4, 0x76, 0xc3, 0x64, 0x33, 0xe2, 0x04, 0xfc,
+	0xac, 0x48, 0xc5, 0x97, 0xb5, 0xab, 0x07, 0xf6, 0xe3, 0x40, 0xf0, 0xa0, 0x94, 0x28, 0x52, 0xa3,
+	0xef, 0x0a, 0xd3, 0x29, 0xdc, 0x89, 0xd8, 0xdb, 0x8d, 0xb8, 0xad, 0xc4, 0xfb, 0xaf, 0x04, 0x2f,
+	0xa1, 0x2f, 0x0a, 0xd2, 0x99, 0x28, 0x23, 0x7f, 0xda, 0x9b, 0x8d, 0x16, 0xe3, 0xba, 0xe1, 0x79,
+	0xfd, 0xee, 0xcd, 0x25, 0xbb, 0x80, 0xb0, 0x95, 0x69, 0xbf, 0xc1, 0xc5, 0xaf, 0x03, 0x5e, 0xc2,
+	0x57, 0x84, 0x4b, 0x18, 0x35, 0xb8, 0x78, 0x6a, 0x1d, 0xdb, 0xdf, 0x14, 0x9f, 0x75, 0xc1, 0xa5,
+	0x62, 0x07, 0x78, 0x0f, 0xc3, 0x6d, 0x95, 0x78, 0x62, 0x69, 0xcd, 0xe5, 0xc4, 0x93, 0x7d, 0xd0,
+	0x28, 0xaf, 0xc0, 0xab, 0x16, 0x8c, 0x81, 0xbd, 0xb7, 0x3f, 0x47, 0x1c, 0xb6, 0xe6, 0x8a, 0xfa,
+	0x76, 0x68, 0x90, 0xdb, 0xbf, 0x00, 0x00, 0x00, 0xff, 0xff, 0x12, 0x2c, 0xcb, 0x8f, 0x5c, 0x02,
 	0x00, 0x00,
 }
