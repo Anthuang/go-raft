@@ -17,10 +17,7 @@ type RaftServer struct {
 func (s RaftServer) AppendEntry(ctx context.Context, req *proto.AppendEntryReq) (*proto.AppendEntryResp, error) {
 	s.R.lastCommit = req.LastCommit
 	s.R.lastPinged = time.Now()
-
-	if s.R.leader != req.Id {
-		s.R.leader = req.Id
-	}
+	s.R.setLeader(req.Id)
 
 	// Check if preceding entry exists first
 	if req.Index < int64(len(s.R.log)) && s.R.log[req.Index].term == req.Term {
@@ -42,10 +39,7 @@ func (s RaftServer) AppendEntry(ctx context.Context, req *proto.AppendEntryReq) 
 func (s RaftServer) HeartBeat(ctx context.Context, req *proto.HeartBeatReq) (*proto.HeartBeatResp, error) {
 	s.R.lastCommit = req.LastCommit
 	s.R.lastPinged = time.Now()
-
-	if s.R.leader != req.Id {
-		s.R.leader = req.Id
-	}
+	s.R.setLeader(req.Id)
 
 	return &proto.HeartBeatResp{}, nil
 }

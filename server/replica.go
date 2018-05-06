@@ -128,3 +128,11 @@ func (r *Replica) heartbeat() {
 		}(i, p)
 	}
 }
+
+func (r *Replica) setLeader(id int64) {
+	// Set leader and delete voted map
+	if r.leader != id {
+		r.leader = id
+		r.voted = make(map[int64]bool)
+	}
+}
