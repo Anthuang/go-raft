@@ -135,28 +135,31 @@ func (r *Replica) vote() {
 	}
 
 	for doneNum < len(r.peers) {
+		// Wait for all to finish unless majority responds
 		ok := <-done
 		if ok {
 			succNum++
 		}
 		doneNum++
-	}
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
+		r.mu.Lock()
+		if succNum >= r.majority {
+			// Become leader
+			r.logger.Infof("%d is now the leader", r.id)
+			r.leader = r.id
 
-	if succNum >= r.majority {
-		// Become leader
-		r.logger.Infof("%d is now the leader", r.id)
-		r.leader = r.id
+			// Set nextIndex to be last index + 1
+			for i := range r.nextIndex {
+				r.nextIndex[i] = len(r.log)
+			}
 
-		// Set nextIndex to be last index + 1
-		for i := range r.nextIndex {
-			r.nextIndex[i] = len(r.log)
+			r.mu.Unlock()
+			return
 		}
-	} else {
-		r.logger.Infof("Election attempt failed")
+		r.mu.Unlock()
 	}
+
+	r.logger.Infof("Election attempt failed")
 }
 
 func (r *Replica) heartbeat() {
