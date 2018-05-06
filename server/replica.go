@@ -153,6 +153,7 @@ func (r *Replica) vote() {
 			}
 
 			r.mu.Unlock()
+			r.heartbeat()
 			return
 		}
 		r.mu.Unlock()
