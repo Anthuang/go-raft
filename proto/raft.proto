@@ -18,6 +18,7 @@ message VoteResp {}
 message HeartBeatReq {
   int64 id = 1;
   int64 lastCommit = 2;
+  int64 term = 3;
 }
 
 message HeartBeatResp {}
@@ -25,13 +26,14 @@ message HeartBeatResp {}
 message Entry {
   string command = 1;
   int64 index = 2;
+  int64 term = 3;
 }
 
 message AppendEntryReq {
   int64 id = 1;
-  int64 index = 2;
-  int64 lastCommit = 3;
-  int64 term = 4;
+  int64 lastCommit = 2;
+  int64 preIndex = 3;
+  int64 preTerm = 4;
   repeated Entry entries = 5;
 }
 

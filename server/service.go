@@ -15,18 +15,19 @@ type RaftServer struct {
 
 // AppendEntry appends an entry to the replica's log
 func (s RaftServer) AppendEntry(ctx context.Context, req *proto.AppendEntryReq) (*proto.AppendEntryResp, error) {
-	s.R.lastCommit = req.LastCommit
 	s.R.lastPinged = time.Now()
+	s.R.lastCommit = req.LastCommit
 	s.R.setLeader(req.Id)
 
 	// Check if preceding entry exists first
-	if req.Index < int64(len(s.R.log)) && s.R.log[req.Index].term == req.Term {
+	if req.PreIndex < int64(len(s.R.log)) && s.R.log[req.PreIndex].term == req.PreTerm {
 		// Append entries to log
 		s.R.log = append(s.R.log, make([]state, len(req.Entries))...)
 		for _, e := range req.Entries {
 			s.R.log[e.Index] = state{
 				command: e.Command,
 				index:   e.Index,
+				term:    e.Term,
 			}
 		}
 
@@ -37,8 +38,9 @@ func (s RaftServer) AppendEntry(ctx context.Context, req *proto.AppendEntryReq) 
 
 // HeartBeat pings replicas
 func (s RaftServer) HeartBeat(ctx context.Context, req *proto.HeartBeatReq) (*proto.HeartBeatResp, error) {
-	s.R.lastCommit = req.LastCommit
 	s.R.lastPinged = time.Now()
+	s.R.term = req.Term
+	s.R.lastCommit = req.LastCommit
 	s.R.setLeader(req.Id)
 
 	// s.R.logger.Infof("Received heartbeat from %d", req.Id)
