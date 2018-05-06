@@ -49,6 +49,8 @@ func NewReplica(id int64, peers []proto.RaftClient, logger *zap.SugaredLogger) *
 		voted:        false,
 	}
 
+	r.logger.Infof("Initiating node %d", r.id)
+
 	go r.run()
 
 	return r
@@ -109,6 +111,9 @@ func (r *Replica) vote() {
 		for i := range r.nextIndex {
 			r.nextIndex[i] = len(r.log)
 		}
+
+		// Let followers know
+		r.heartbeat()
 	} else {
 		r.logger.Infof("Election attempt failed")
 	}
