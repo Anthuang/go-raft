@@ -74,10 +74,9 @@ func (r *Replica) run() {
 		if r.leader == r.id && t.Sub(r.lastPinged) > r.pingInterval {
 			// Send heart beats
 			r.lastPinged = t
+			r.mu.Unlock()
 			r.heartbeat()
-		}
-
-		if r.leader != r.id && t.Sub(r.lastPinged) > r.timeout {
+		} else if r.leader != r.id && t.Sub(r.lastPinged) > r.timeout {
 			// Initiate new election
 			r.logger.Infof("Initiating election term %d", r.term+1)
 			r.term++
