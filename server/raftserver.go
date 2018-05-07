@@ -45,7 +45,7 @@ func (s RaftServer) HeartBeat(ctx context.Context, req *proto.HeartBeatReq) (*pr
 
 	s.R.lastPinged = time.Now()
 
-	if req.Term != 0 {
+	if s.R.isInit {
 		s.R.term = req.Term
 		s.R.lastCommit = req.LastCommit
 		s.R.setLeader(req.Id)

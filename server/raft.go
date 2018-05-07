@@ -18,6 +18,7 @@ type state struct {
 // Replica implements main logic for Raft replicas
 type Replica struct {
 	id           int64
+	isInit       bool
 	lastCommit   int64
 	lastPinged   time.Time
 	leader       int64
@@ -40,6 +41,7 @@ type Replica struct {
 func NewReplica(id int64, peers []proto.RaftClient, peersAddrs []string, logger *zap.SugaredLogger) *Replica {
 	r := &Replica{
 		id:           id,
+		isInit:       true,
 		lastCommit:   -1,
 		lastPinged:   time.Now(),
 		leader:       -1,
@@ -111,6 +113,7 @@ func (r *Replica) init() {
 	for i := 0; i < len(r.peers)-1; i++ {
 		<-done
 	}
+	r.isInit = false
 	r.logger.Infof("Done initializing node %d", r.id)
 }
 
