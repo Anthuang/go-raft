@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/anthuang/go-raft/proto"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
@@ -17,7 +18,7 @@ func startup(addrs []string) ([]*grpc.Server, []*Replica, []*RaftServer) {
 	var replicas []*Replica
 	var raftservers []*RaftServer
 
-	logger, _ := zap.NewProduction()
+	logger, _ := zap.NewDevelopment()
 	defer logger.Sync()
 	sugar := logger.Sugar()
 
@@ -50,6 +51,8 @@ func startup(addrs []string) ([]*grpc.Server, []*Replica, []*RaftServer) {
 		s := grpc.NewServer()
 		proto.RegisterRaftServer(s, rs)
 
+		servers = append(servers, s)
+
 		go func() {
 			s.Serve(listener)
 		}()
@@ -64,6 +67,11 @@ func shutdown(servers []*grpc.Server) {
 	}
 }
 
+func kill(servers []*grpc.Server, replicas []*Replica, id int) {
+	servers[id].Stop()
+	replicas[id].shutdown = true
+}
+
 // Leader election tests
 func TestLeaderSimple(t *testing.T) {
 	addrs := []string{":6000", ":6010", ":6020"}
@@ -71,9 +79,17 @@ func TestLeaderSimple(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
-	log.Println(replicas[0].leader)
-	log.Println(replicas[1].leader)
-	log.Println(replicas[2].leader)
+	assert.Equal(t, int64(0), replicas[0].leader, "Leader should be 0")
+	assert.Equal(t, replicas[0].leader, replicas[1].leader, "Leader should be 0")
+	assert.Equal(t, replicas[0].leader, replicas[2].leader, "Leader should be 0")
+
+	log.Println("Killing server 0")
+	kill(servers, replicas, 0)
+
+	time.Sleep(2 * time.Second)
+
+	assert.Equal(t, int64(1), replicas[1].leader, "Leader should be 1")
+	assert.Equal(t, replicas[1].leader, replicas[2].leader, "Leader should be 1")
 
 	shutdown(servers)
 }

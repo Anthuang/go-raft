@@ -27,7 +27,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	logger, _ := zap.NewProduction()
+	logger, _ := zap.NewDevelopment()
 	defer logger.Sync()
 	sugar := logger.Sugar()
 

@@ -30,6 +30,7 @@ type Replica struct {
 	peers        []proto.RaftClient
 	peersAddrs   []string
 	pingInterval time.Duration
+	shutdown     bool
 	term         int64
 	timeout      time.Duration
 	voted        map[int64]bool
@@ -53,8 +54,9 @@ func NewReplica(id int64, peers []proto.RaftClient, peersAddrs []string, logger 
 		peers:        peers,
 		peersAddrs:   peersAddrs,
 		pingInterval: time.Duration(100) * time.Millisecond,
+		shutdown:     false,
 		term:         0,
-		timeout:      time.Duration(id*50+1000) * time.Millisecond,
+		timeout:      time.Duration(id*100+1000) * time.Millisecond,
 		voted:        make(map[int64]bool),
 
 		initChannel: make(chan bool),
@@ -69,25 +71,22 @@ func (r *Replica) run() {
 	// Main replica logic
 	r.init()
 
-	for {
+	for !r.shutdown {
 		t := time.Now()
 
 		r.mu.Lock()
 		if r.leader == r.id && t.Sub(r.lastPinged) > r.pingInterval {
 			// Send heart beats
 			r.lastPinged = t
-			r.mu.Unlock()
 			r.heartbeat()
 		} else if r.leader != r.id && t.Sub(r.lastPinged) > r.timeout {
 			// Initiate new election
 			r.logger.Infof("Initiating election term %d", r.term+1)
 			r.term++
 			r.leader = -1
-			r.mu.Unlock()
 			r.vote()
-		} else {
-			r.mu.Unlock()
 		}
+		r.mu.Unlock()
 		time.Sleep(100 * time.Millisecond)
 	}
 }
@@ -120,22 +119,32 @@ func (r *Replica) init() {
 func (r *Replica) vote() {
 	// Vote for itself
 	done := make(chan bool)
-	doneNum := 0
-	succNum := 0
 
 	for i, p := range r.peers {
 		go func(i int, p proto.RaftClient) {
-			_, err := p.Vote(context.Background(), &proto.VoteReq{Id: r.id, Term: r.term})
-			if err != nil {
-				// r.logger.Infof("%d returned failure for term %d", i, r.term)
-				done <- false
-			} else {
-				// r.logger.Infof("%d returned success for term %d", i, r.term)
+			if i == int(r.id) {
+				if !r.voted[r.term] {
+					r.leader = -1
+					r.voted[r.term] = true
+				}
 				done <- true
+			} else {
+				_, err := p.Vote(context.Background(), &proto.VoteReq{Id: r.id, Term: r.term})
+				if err != nil {
+					// r.logger.Infof("%d: %d returned failure for term %d", r.id, i, r.term)
+					done <- false
+				} else {
+					// r.logger.Infof("%d: %d returned success for term %d", r.id, i, r.term)
+					done <- true
+				}
 			}
 		}(i, p)
 	}
 
+	r.mu.Unlock()
+
+	doneNum := 0
+	succNum := 0
 	for doneNum < len(r.peers) {
 		// Wait for all to finish unless majority responds
 		ok := <-done
@@ -155,21 +164,24 @@ func (r *Replica) vote() {
 				r.nextIndex[i] = len(r.log)
 			}
 
-			r.mu.Unlock()
 			r.heartbeat()
 			return
 		}
 		r.mu.Unlock()
 	}
 
+	r.mu.Lock()
 	r.logger.Infof("Election attempt failed")
 }
 
 func (r *Replica) heartbeat() {
 	// Send heartbeat to followers
 	for i, p := range r.peers {
+		if i == int(r.id) {
+			continue
+		}
 		go func(i int, p proto.RaftClient) {
-			p.HeartBeat(context.Background(), &proto.HeartBeatReq{Id: r.id, LastCommit: r.lastCommit})
+			p.HeartBeat(context.Background(), &proto.HeartBeatReq{Id: r.id, LastCommit: r.lastCommit, Term: r.term})
 		}(i, p)
 	}
 }

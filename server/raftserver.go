@@ -38,7 +38,7 @@ func (s RaftServer) AppendEntry(ctx context.Context, req *proto.AppendEntryReq) 
 	return &proto.AppendEntryResp{Ok: false}, nil
 }
 
-// HeartBeat pings replicas
+// HeartBeat receives pings
 func (s RaftServer) HeartBeat(ctx context.Context, req *proto.HeartBeatReq) (*proto.HeartBeatResp, error) {
 	s.R.mu.Lock()
 	defer s.R.mu.Unlock()
@@ -56,7 +56,7 @@ func (s RaftServer) HeartBeat(ctx context.Context, req *proto.HeartBeatReq) (*pr
 	return &proto.HeartBeatResp{}, nil
 }
 
-// Vote attempts to elect current replica as leader
+// Vote handles vote requests
 func (s RaftServer) Vote(ctx context.Context, req *proto.VoteReq) (*proto.VoteResp, error) {
 	s.R.mu.Lock()
 	defer s.R.mu.Unlock()
@@ -64,13 +64,13 @@ func (s RaftServer) Vote(ctx context.Context, req *proto.VoteReq) (*proto.VoteRe
 	s.R.lastPinged = time.Now()
 
 	if req.Term >= s.R.term && !s.R.voted[req.Term] {
-		// s.R.logger.Infof("Accepting vote request from %d for term %d", req.Id, s.R.term)
+		// s.R.logger.Infof("%d: Accepting vote request from %d for term %d", s.R.id, req.Id, req.Term)
 		s.R.leader = -1
 		s.R.term = req.Term
 		s.R.voted[req.Term] = true
 		return &proto.VoteResp{}, nil
 	}
 
-	// s.R.logger.Infof("Rejecting vote request from %d for term %d", req.Id, s.R.term)
+	// s.R.logger.Infof("%d: Rejecting vote request from %d for term %d", s.R.id, req.Id, req.Term)
 	return &proto.VoteResp{}, errors.New("Rejecting vote request")
 }
