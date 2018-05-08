@@ -59,21 +59,21 @@ func main() {
 	dialOpts = append(dialOpts, grpc.WithInsecure())
 	dialOpts = append(dialOpts, grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: 3 * time.Second}))
 
-	var clients []proto.RaftClient
+	var clients []proto.ReplicaClient
 	for _, addr := range addrs {
 		cc, err := grpc.Dial(addr, dialOpts...)
 		if err != nil {
 			sugar.Fatal("unable to connect to host: %v", err)
 		}
-		c := proto.NewRaftClient(cc)
+		c := proto.NewReplicaClient(cc)
 		clients = append(clients, c)
 	}
 
 	r := server.NewReplica(int64(*replicaID), clients, addrs, sugar)
-	rs := server.RaftServer{R: r}
+	rs := server.ReplicaServer{R: r}
 
 	s := grpc.NewServer()
-	proto.RegisterRaftServer(s, rs)
+	proto.RegisterReplicaServer(s, rs)
 
 	s.Serve(listener)
 }

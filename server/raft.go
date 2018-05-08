@@ -27,7 +27,7 @@ type Replica struct {
 	majority     int
 	mu           sync.Mutex
 	nextIndex    []int
-	peers        []proto.RaftClient
+	peers        []proto.ReplicaClient
 	peersAddrs   []string
 	pingInterval time.Duration
 	shutdown     bool
@@ -39,7 +39,7 @@ type Replica struct {
 }
 
 // NewReplica creates a new Replica object
-func NewReplica(id int64, peers []proto.RaftClient, peersAddrs []string, logger *zap.SugaredLogger) *Replica {
+func NewReplica(id int64, peers []proto.ReplicaClient, peersAddrs []string, logger *zap.SugaredLogger) *Replica {
 	r := &Replica{
 		id:           id,
 		isInit:       true,
@@ -132,7 +132,7 @@ func (r *Replica) vote() {
 	done := make(chan bool)
 
 	for i, p := range r.peers {
-		go func(i int, p proto.RaftClient) {
+		go func(i int, p proto.ReplicaClient) {
 			if i == int(r.id) {
 				if !r.voted[r.term] {
 					r.leader = -1
@@ -192,7 +192,7 @@ func (r *Replica) heartbeat() {
 		if i == int(r.id) {
 			continue
 		}
-		go func(i int, p proto.RaftClient) {
+		go func(i int, p proto.ReplicaClient) {
 			p.HeartBeat(context.Background(), &proto.HeartBeatReq{Id: r.id, LastCommit: r.lastCommit, Term: r.term})
 		}(i, p)
 	}

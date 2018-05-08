@@ -8,13 +8,13 @@ import (
 	"github.com/anthuang/go-raft/proto"
 )
 
-// RaftServer implements the server
-type RaftServer struct {
+// ReplicaServer implements the server
+type ReplicaServer struct {
 	R *Replica
 }
 
 // AppendEntry appends an entry to the replica's log
-func (s RaftServer) AppendEntry(ctx context.Context, req *proto.AppendEntryReq) (*proto.AppendEntryResp, error) {
+func (s ReplicaServer) AppendEntry(ctx context.Context, req *proto.AppendEntryReq) (*proto.AppendEntryResp, error) {
 	s.R.mu.Lock()
 	defer s.R.mu.Unlock()
 
@@ -42,7 +42,7 @@ func (s RaftServer) AppendEntry(ctx context.Context, req *proto.AppendEntryReq) 
 }
 
 // HeartBeat receives pings
-func (s RaftServer) HeartBeat(ctx context.Context, req *proto.HeartBeatReq) (*proto.HeartBeatResp, error) {
+func (s ReplicaServer) HeartBeat(ctx context.Context, req *proto.HeartBeatReq) (*proto.HeartBeatResp, error) {
 	s.R.mu.Lock()
 	defer s.R.mu.Unlock()
 
@@ -63,7 +63,7 @@ func (s RaftServer) HeartBeat(ctx context.Context, req *proto.HeartBeatReq) (*pr
 }
 
 // Vote handles vote requests
-func (s RaftServer) Vote(ctx context.Context, req *proto.VoteReq) (*proto.VoteResp, error) {
+func (s ReplicaServer) Vote(ctx context.Context, req *proto.VoteReq) (*proto.VoteResp, error) {
 	s.R.mu.Lock()
 	defer s.R.mu.Unlock()
 

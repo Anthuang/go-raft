@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package proto;
 
-service Raft {
+service Replica {
   rpc AppendEntry(AppendEntryReq) returns (AppendEntryResp) {}
   rpc HeartBeat(HeartBeatReq) returns (HeartBeatResp) {}
   rpc Vote(VoteReq) returns (VoteResp) {}

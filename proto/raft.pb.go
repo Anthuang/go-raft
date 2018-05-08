@@ -35,7 +35,7 @@ func (m *VoteReq) Reset()         { *m = VoteReq{} }
 func (m *VoteReq) String() string { return proto.CompactTextString(m) }
 func (*VoteReq) ProtoMessage()    {}
 func (*VoteReq) Descriptor() ([]byte, []int) {
-	return fileDescriptor_raft_42da5e25ff61d616, []int{0}
+	return fileDescriptor_raft_749fa6f4747939c0, []int{0}
 }
 func (m *VoteReq) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_VoteReq.Unmarshal(m, b)
@@ -79,7 +79,7 @@ func (m *VoteResp) Reset()         { *m = VoteResp{} }
 func (m *VoteResp) String() string { return proto.CompactTextString(m) }
 func (*VoteResp) ProtoMessage()    {}
 func (*VoteResp) Descriptor() ([]byte, []int) {
-	return fileDescriptor_raft_42da5e25ff61d616, []int{1}
+	return fileDescriptor_raft_749fa6f4747939c0, []int{1}
 }
 func (m *VoteResp) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_VoteResp.Unmarshal(m, b)
@@ -112,7 +112,7 @@ func (m *HeartBeatReq) Reset()         { *m = HeartBeatReq{} }
 func (m *HeartBeatReq) String() string { return proto.CompactTextString(m) }
 func (*HeartBeatReq) ProtoMessage()    {}
 func (*HeartBeatReq) Descriptor() ([]byte, []int) {
-	return fileDescriptor_raft_42da5e25ff61d616, []int{2}
+	return fileDescriptor_raft_749fa6f4747939c0, []int{2}
 }
 func (m *HeartBeatReq) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_HeartBeatReq.Unmarshal(m, b)
@@ -163,7 +163,7 @@ func (m *HeartBeatResp) Reset()         { *m = HeartBeatResp{} }
 func (m *HeartBeatResp) String() string { return proto.CompactTextString(m) }
 func (*HeartBeatResp) ProtoMessage()    {}
 func (*HeartBeatResp) Descriptor() ([]byte, []int) {
-	return fileDescriptor_raft_42da5e25ff61d616, []int{3}
+	return fileDescriptor_raft_749fa6f4747939c0, []int{3}
 }
 func (m *HeartBeatResp) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_HeartBeatResp.Unmarshal(m, b)
@@ -196,7 +196,7 @@ func (m *Entry) Reset()         { *m = Entry{} }
 func (m *Entry) String() string { return proto.CompactTextString(m) }
 func (*Entry) ProtoMessage()    {}
 func (*Entry) Descriptor() ([]byte, []int) {
-	return fileDescriptor_raft_42da5e25ff61d616, []int{4}
+	return fileDescriptor_raft_749fa6f4747939c0, []int{4}
 }
 func (m *Entry) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Entry.Unmarshal(m, b)
@@ -253,7 +253,7 @@ func (m *AppendEntryReq) Reset()         { *m = AppendEntryReq{} }
 func (m *AppendEntryReq) String() string { return proto.CompactTextString(m) }
 func (*AppendEntryReq) ProtoMessage()    {}
 func (*AppendEntryReq) Descriptor() ([]byte, []int) {
-	return fileDescriptor_raft_42da5e25ff61d616, []int{5}
+	return fileDescriptor_raft_749fa6f4747939c0, []int{5}
 }
 func (m *AppendEntryReq) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AppendEntryReq.Unmarshal(m, b)
@@ -326,7 +326,7 @@ func (m *AppendEntryResp) Reset()         { *m = AppendEntryResp{} }
 func (m *AppendEntryResp) String() string { return proto.CompactTextString(m) }
 func (*AppendEntryResp) ProtoMessage()    {}
 func (*AppendEntryResp) Descriptor() ([]byte, []int) {
-	return fileDescriptor_raft_42da5e25ff61d616, []int{6}
+	return fileDescriptor_raft_749fa6f4747939c0, []int{6}
 }
 func (m *AppendEntryResp) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AppendEntryResp.Unmarshal(m, b)
@@ -371,159 +371,159 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for Raft service
+// Client API for Replica service
 
-type RaftClient interface {
+type ReplicaClient interface {
 	AppendEntry(ctx context.Context, in *AppendEntryReq, opts ...grpc.CallOption) (*AppendEntryResp, error)
 	HeartBeat(ctx context.Context, in *HeartBeatReq, opts ...grpc.CallOption) (*HeartBeatResp, error)
 	Vote(ctx context.Context, in *VoteReq, opts ...grpc.CallOption) (*VoteResp, error)
 }
 
-type raftClient struct {
+type replicaClient struct {
 	cc *grpc.ClientConn
 }
 
-func NewRaftClient(cc *grpc.ClientConn) RaftClient {
-	return &raftClient{cc}
+func NewReplicaClient(cc *grpc.ClientConn) ReplicaClient {
+	return &replicaClient{cc}
 }
 
-func (c *raftClient) AppendEntry(ctx context.Context, in *AppendEntryReq, opts ...grpc.CallOption) (*AppendEntryResp, error) {
+func (c *replicaClient) AppendEntry(ctx context.Context, in *AppendEntryReq, opts ...grpc.CallOption) (*AppendEntryResp, error) {
 	out := new(AppendEntryResp)
-	err := grpc.Invoke(ctx, "/proto.Raft/AppendEntry", in, out, c.cc, opts...)
+	err := grpc.Invoke(ctx, "/proto.Replica/AppendEntry", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *raftClient) HeartBeat(ctx context.Context, in *HeartBeatReq, opts ...grpc.CallOption) (*HeartBeatResp, error) {
+func (c *replicaClient) HeartBeat(ctx context.Context, in *HeartBeatReq, opts ...grpc.CallOption) (*HeartBeatResp, error) {
 	out := new(HeartBeatResp)
-	err := grpc.Invoke(ctx, "/proto.Raft/HeartBeat", in, out, c.cc, opts...)
+	err := grpc.Invoke(ctx, "/proto.Replica/HeartBeat", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *raftClient) Vote(ctx context.Context, in *VoteReq, opts ...grpc.CallOption) (*VoteResp, error) {
+func (c *replicaClient) Vote(ctx context.Context, in *VoteReq, opts ...grpc.CallOption) (*VoteResp, error) {
 	out := new(VoteResp)
-	err := grpc.Invoke(ctx, "/proto.Raft/Vote", in, out, c.cc, opts...)
+	err := grpc.Invoke(ctx, "/proto.Replica/Vote", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for Raft service
+// Server API for Replica service
 
-type RaftServer interface {
+type ReplicaServer interface {
 	AppendEntry(context.Context, *AppendEntryReq) (*AppendEntryResp, error)
 	HeartBeat(context.Context, *HeartBeatReq) (*HeartBeatResp, error)
 	Vote(context.Context, *VoteReq) (*VoteResp, error)
 }
 
-func RegisterRaftServer(s *grpc.Server, srv RaftServer) {
-	s.RegisterService(&_Raft_serviceDesc, srv)
+func RegisterReplicaServer(s *grpc.Server, srv ReplicaServer) {
+	s.RegisterService(&_Replica_serviceDesc, srv)
 }
 
-func _Raft_AppendEntry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Replica_AppendEntry_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AppendEntryReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(RaftServer).AppendEntry(ctx, in)
+		return srv.(ReplicaServer).AppendEntry(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.Raft/AppendEntry",
+		FullMethod: "/proto.Replica/AppendEntry",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RaftServer).AppendEntry(ctx, req.(*AppendEntryReq))
+		return srv.(ReplicaServer).AppendEntry(ctx, req.(*AppendEntryReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Raft_HeartBeat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Replica_HeartBeat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HeartBeatReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(RaftServer).HeartBeat(ctx, in)
+		return srv.(ReplicaServer).HeartBeat(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.Raft/HeartBeat",
+		FullMethod: "/proto.Replica/HeartBeat",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RaftServer).HeartBeat(ctx, req.(*HeartBeatReq))
+		return srv.(ReplicaServer).HeartBeat(ctx, req.(*HeartBeatReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Raft_Vote_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Replica_Vote_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(VoteReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(RaftServer).Vote(ctx, in)
+		return srv.(ReplicaServer).Vote(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.Raft/Vote",
+		FullMethod: "/proto.Replica/Vote",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RaftServer).Vote(ctx, req.(*VoteReq))
+		return srv.(ReplicaServer).Vote(ctx, req.(*VoteReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-var _Raft_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "proto.Raft",
-	HandlerType: (*RaftServer)(nil),
+var _Replica_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "proto.Replica",
+	HandlerType: (*ReplicaServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "AppendEntry",
-			Handler:    _Raft_AppendEntry_Handler,
+			Handler:    _Replica_AppendEntry_Handler,
 		},
 		{
 			MethodName: "HeartBeat",
-			Handler:    _Raft_HeartBeat_Handler,
+			Handler:    _Replica_HeartBeat_Handler,
 		},
 		{
 			MethodName: "Vote",
-			Handler:    _Raft_Vote_Handler,
+			Handler:    _Replica_Vote_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "proto/raft.proto",
 }
 
-func init() { proto.RegisterFile("proto/raft.proto", fileDescriptor_raft_42da5e25ff61d616) }
+func init() { proto.RegisterFile("proto/raft.proto", fileDescriptor_raft_749fa6f4747939c0) }
 
-var fileDescriptor_raft_42da5e25ff61d616 = []byte{
-	// 326 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x92, 0x3f, 0x4f, 0xc3, 0x30,
-	0x10, 0xc5, 0x49, 0x9a, 0xf4, 0xcf, 0xb5, 0xb4, 0xe8, 0x28, 0x28, 0xca, 0x80, 0x8a, 0x07, 0x54,
-	0x06, 0x8a, 0x54, 0x16, 0x26, 0x24, 0x40, 0x48, 0x20, 0x36, 0x0b, 0xb1, 0x1b, 0xe2, 0x4a, 0x51,
-	0x49, 0x6c, 0x6c, 0x0f, 0xf0, 0x99, 0xd8, 0xf8, 0x84, 0x28, 0xb6, 0x1b, 0x52, 0x91, 0x89, 0x29,
-	0x7e, 0xef, 0xce, 0xef, 0x7e, 0xb1, 0x0d, 0x7b, 0x52, 0x09, 0x23, 0xce, 0x15, 0x5b, 0x99, 0x85,
-	0x5d, 0x62, 0x6c, 0x3f, 0xe4, 0x0c, 0x7a, 0xcf, 0xc2, 0x70, 0xca, 0xdf, 0x71, 0x0c, 0x61, 0x9e,
-	0x25, 0xc1, 0x2c, 0x98, 0x77, 0x68, 0x98, 0x67, 0x88, 0x10, 0x19, 0xae, 0x8a, 0x24, 0xb4, 0x8e,
-	0x5d, 0x13, 0x80, 0xbe, 0x6b, 0xd7, 0x92, 0x50, 0x18, 0xdd, 0x73, 0xa6, 0xcc, 0x0d, 0x67, 0xa6,
-	0x6d, 0xff, 0x11, 0xc0, 0x1b, 0xd3, 0xe6, 0x56, 0x14, 0x45, 0x6e, 0x7c, 0x4a, 0xc3, 0xa9, 0xf3,
-	0x3b, 0x8d, 0xfc, 0x09, 0xec, 0x36, 0x32, 0xb5, 0x24, 0x8f, 0x10, 0xdf, 0x95, 0x46, 0x7d, 0x62,
-	0x02, 0xbd, 0x57, 0x51, 0x14, 0xac, 0x74, 0x23, 0x06, 0x74, 0x23, 0x71, 0x0a, 0x71, 0x5e, 0x66,
-	0xfc, 0xc3, 0x8f, 0x70, 0xa2, 0x35, 0xfd, 0x3b, 0x80, 0xf1, 0xb5, 0x94, 0xbc, 0xcc, 0x6c, 0xe6,
-	0x7f, 0xa0, 0x53, 0xe8, 0x4b, 0xc5, 0x1f, 0xec, 0x3c, 0x17, 0x5d, 0xeb, 0x0a, 0x51, 0x2a, 0xfe,
-	0x54, 0x4d, 0x8d, 0x6c, 0x69, 0x23, 0x6b, 0x98, 0xf8, 0x17, 0x06, 0x4f, 0xa0, 0xc7, 0x4b, 0xa3,
-	0x72, 0xae, 0x93, 0xee, 0xac, 0x33, 0x1f, 0x2e, 0x47, 0xee, 0x66, 0x16, 0x8e, 0x6d, 0x53, 0x24,
-	0xc7, 0x30, 0xd9, 0x62, 0xd6, 0xb2, 0x82, 0x16, 0x6b, 0x0b, 0xdd, 0xa7, 0xa1, 0x58, 0x2f, 0xbf,
-	0x02, 0x88, 0x28, 0x5b, 0x19, 0xbc, 0x82, 0x61, 0xa3, 0x17, 0x0f, 0x7c, 0xe2, 0xf6, 0x3f, 0xa7,
-	0x87, 0x6d, 0xb6, 0x96, 0x64, 0x07, 0x2f, 0x61, 0x50, 0x1f, 0x3f, 0xee, 0xfb, 0xb6, 0xe6, 0x25,
-	0xa7, 0xd3, 0xbf, 0xa6, 0xdd, 0x79, 0x0a, 0x51, 0xf5, 0x30, 0x70, 0xec, 0xeb, 0xfe, 0x51, 0xa5,
-	0x93, 0x2d, 0x5d, 0xb5, 0xbe, 0x74, 0xad, 0x73, 0xf1, 0x13, 0x00, 0x00, 0xff, 0xff, 0x66, 0x54,
-	0x8d, 0x89, 0x94, 0x02, 0x00, 0x00,
+var fileDescriptor_raft_749fa6f4747939c0 = []byte{
+	// 330 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x92, 0x31, 0x4f, 0xfb, 0x30,
+	0x10, 0xc5, 0xff, 0x49, 0x9b, 0xa6, 0xbd, 0xf6, 0xdf, 0xa2, 0xa3, 0xa0, 0x28, 0x03, 0x2a, 0x19,
+	0x50, 0x19, 0x28, 0x52, 0x59, 0x98, 0x90, 0x00, 0x21, 0x81, 0xd8, 0x22, 0xc4, 0x1e, 0x9a, 0x43,
+	0xb2, 0xda, 0xc4, 0xc6, 0xf6, 0x00, 0x5f, 0x8a, 0x81, 0x4f, 0x88, 0x62, 0xbb, 0x21, 0x15, 0x99,
+	0x98, 0xe2, 0xf7, 0xee, 0xfc, 0xee, 0x17, 0x9d, 0x61, 0x4f, 0x48, 0xae, 0xf9, 0xb9, 0xcc, 0x5e,
+	0xf5, 0xc2, 0x1c, 0x31, 0x30, 0x9f, 0xe4, 0x0c, 0xc2, 0x67, 0xae, 0x29, 0xa5, 0x37, 0x1c, 0x83,
+	0xcf, 0xf2, 0xc8, 0x9b, 0x79, 0xf3, 0x4e, 0xea, 0xb3, 0x1c, 0x11, 0xba, 0x9a, 0x64, 0x11, 0xf9,
+	0xc6, 0x31, 0xe7, 0x04, 0xa0, 0x6f, 0xdb, 0x95, 0x48, 0x52, 0x18, 0xdd, 0x53, 0x26, 0xf5, 0x0d,
+	0x65, 0xba, 0xed, 0xfe, 0x11, 0xc0, 0x26, 0x53, 0xfa, 0x96, 0x17, 0x05, 0xd3, 0x2e, 0xa5, 0xe1,
+	0xd4, 0xf9, 0x9d, 0x46, 0xfe, 0x04, 0xfe, 0x37, 0x32, 0x95, 0x48, 0x1e, 0x21, 0xb8, 0x2b, 0xb5,
+	0xfc, 0xc0, 0x08, 0xc2, 0x15, 0x2f, 0x8a, 0xac, 0xb4, 0x23, 0x06, 0xe9, 0x56, 0xe2, 0x14, 0x02,
+	0x56, 0xe6, 0xf4, 0xee, 0x46, 0x58, 0xd1, 0x9a, 0xfe, 0xe5, 0xc1, 0xf8, 0x5a, 0x08, 0x2a, 0x73,
+	0x93, 0xf9, 0x17, 0xe8, 0x18, 0xfa, 0x42, 0xd2, 0x83, 0x99, 0x67, 0xa3, 0x6b, 0x5d, 0x21, 0x0a,
+	0x49, 0x4f, 0xd5, 0xd4, 0xae, 0x29, 0x6d, 0x65, 0x0d, 0x13, 0xfc, 0xc0, 0xe0, 0x09, 0x84, 0x54,
+	0x6a, 0xc9, 0x48, 0x45, 0xbd, 0x59, 0x67, 0x3e, 0x5c, 0x8e, 0xec, 0x66, 0x16, 0x96, 0x6d, 0x5b,
+	0x4c, 0x8e, 0x61, 0xb2, 0xc3, 0xac, 0x44, 0x05, 0xcd, 0xd7, 0x06, 0xba, 0x9f, 0xfa, 0x7c, 0xbd,
+	0xfc, 0xf4, 0x20, 0x4c, 0x49, 0x6c, 0xd8, 0x2a, 0xc3, 0x2b, 0x18, 0x36, 0xda, 0xf1, 0xc0, 0x85,
+	0xee, 0xfe, 0x76, 0x7c, 0xd8, 0x66, 0x2b, 0x91, 0xfc, 0xc3, 0x4b, 0x18, 0xd4, 0x1b, 0xc0, 0x7d,
+	0xd7, 0xd6, 0xdc, 0x73, 0x3c, 0xfd, 0x6d, 0x9a, 0x9b, 0xa7, 0xd0, 0xad, 0xde, 0x06, 0x8e, 0x5d,
+	0xdd, 0xbd, 0xab, 0x78, 0xb2, 0xa3, 0xab, 0xd6, 0x97, 0x9e, 0x71, 0x2e, 0xbe, 0x03, 0x00, 0x00,
+	0xff, 0xff, 0xf6, 0xd4, 0xa6, 0xc0, 0x97, 0x02, 0x00, 0x00,
 }

@@ -27,13 +27,13 @@ func startup(addrs []string) ([]*grpc.Server, []*grpc.ClientConn, []*Replica) {
 	dialOpts = append(dialOpts, grpc.WithInsecure())
 	dialOpts = append(dialOpts, grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: 3 * time.Second}))
 
-	var clients []proto.RaftClient
+	var clients []proto.ReplicaClient
 	for _, addr := range addrs {
 		cc, err := grpc.Dial(addr, dialOpts...)
 		if err != nil {
 			log.Fatalf("unable to connect to host: %v", err)
 		}
-		c := proto.NewRaftClient(cc)
+		c := proto.NewReplicaClient(cc)
 		connections = append(connections, cc)
 		clients = append(clients, c)
 	}
@@ -45,12 +45,12 @@ func startup(addrs []string) ([]*grpc.Server, []*grpc.ClientConn, []*Replica) {
 		}
 
 		r := NewReplica(int64(i), clients, addrs, sugar)
-		rs := RaftServer{R: r}
+		rs := ReplicaServer{R: r}
 
 		replicas = append(replicas, r)
 
 		s := grpc.NewServer()
-		proto.RegisterRaftServer(s, rs)
+		proto.RegisterReplicaServer(s, rs)
 
 		servers = append(servers, s)
 
@@ -85,8 +85,8 @@ func restart(servers []*grpc.Server, replicas []*Replica, addrs []string, id int
 		log.Fatal(err)
 	}
 	s := grpc.NewServer()
-	rs := RaftServer{R: replicas[id]}
-	proto.RegisterRaftServer(s, rs)
+	rs := ReplicaServer{R: replicas[id]}
+	proto.RegisterReplicaServer(s, rs)
 	servers[id] = s
 	go func() {
 		s.Serve(listener)
