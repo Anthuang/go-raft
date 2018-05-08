@@ -107,22 +107,23 @@ func (r *Replica) init() {
 func (r *Replica) run() {
 	// Main replica logic
 	for !r.shutdown {
+		r.mu.Lock()
 		t := time.Now()
 
-		r.mu.Lock()
 		if r.leader == r.id && t.Sub(r.lastPinged) > r.pingInterval {
 			// Send heart beats
 			r.lastPinged = t
 			r.heartbeat()
 		} else if r.leader != r.id && t.Sub(r.lastPinged) > r.timeout {
 			// Initiate new election
-			r.logger.Infof("Initiating election term %d", r.term+1)
+			r.logger.Infof("%d: Initiating election term %d", r.id, r.term+1)
 			r.term++
 			r.leader = -1
 			r.vote()
 		}
+
 		r.mu.Unlock()
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 	}
 }
 
@@ -139,12 +140,13 @@ func (r *Replica) vote() {
 				}
 				done <- true
 			} else {
+				// r.logger.Infof("%d sending to %d", r.id, i)
 				_, err := p.Vote(context.Background(), &proto.VoteReq{Id: r.id, Term: r.term})
 				if err != nil {
 					// r.logger.Infof("%d: %d returned failure for term %d", r.id, i, r.term)
 					done <- false
 				} else {
-					// r.logger.Infof("%d: %d returned success for term %d", r.id, i, r.term)
+					r.logger.Infof("%d: %d returned success for term %d", r.id, i, r.term)
 					done <- true
 				}
 			}
@@ -181,7 +183,7 @@ func (r *Replica) vote() {
 	}
 
 	r.mu.Lock()
-	r.logger.Infof("Election attempt failed")
+	r.logger.Infof("%d: Election attempt failed", r.id)
 }
 
 func (r *Replica) heartbeat() {
