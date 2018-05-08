@@ -56,39 +56,27 @@ func NewReplica(id int64, peers []proto.RaftClient, peersAddrs []string, logger 
 		pingInterval: time.Duration(100) * time.Millisecond,
 		shutdown:     false,
 		term:         0,
-		timeout:      time.Duration(id*100+1000) * time.Millisecond,
+		timeout:      time.Duration(id*100+500) * time.Millisecond,
 		voted:        make(map[int64]bool),
 
 		initChannel: make(chan bool),
 	}
 
-	go r.run()
+	go r.start()
 
 	return r
 }
 
-func (r *Replica) run() {
-	// Main replica logic
+func (r *Replica) start() {
+	// Starts with init
 	r.init()
+	r.run()
+}
 
-	for !r.shutdown {
-		t := time.Now()
-
-		r.mu.Lock()
-		if r.leader == r.id && t.Sub(r.lastPinged) > r.pingInterval {
-			// Send heart beats
-			r.lastPinged = t
-			r.heartbeat()
-		} else if r.leader != r.id && t.Sub(r.lastPinged) > r.timeout {
-			// Initiate new election
-			r.logger.Infof("Initiating election term %d", r.term+1)
-			r.term++
-			r.leader = -1
-			r.vote()
-		}
-		r.mu.Unlock()
-		time.Sleep(100 * time.Millisecond)
-	}
+func (r *Replica) restart() {
+	r.leader = -1
+	r.shutdown = false
+	go r.run()
 }
 
 func (r *Replica) init() {
@@ -114,6 +102,28 @@ func (r *Replica) init() {
 	}
 	r.isInit = false
 	r.logger.Infof("Done initializing node %d", r.id)
+}
+
+func (r *Replica) run() {
+	// Main replica logic
+	for !r.shutdown {
+		t := time.Now()
+
+		r.mu.Lock()
+		if r.leader == r.id && t.Sub(r.lastPinged) > r.pingInterval {
+			// Send heart beats
+			r.lastPinged = t
+			r.heartbeat()
+		} else if r.leader != r.id && t.Sub(r.lastPinged) > r.timeout {
+			// Initiate new election
+			r.logger.Infof("Initiating election term %d", r.term+1)
+			r.term++
+			r.leader = -1
+			r.vote()
+		}
+		r.mu.Unlock()
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func (r *Replica) vote() {

@@ -18,22 +18,25 @@ func (s RaftServer) AppendEntry(ctx context.Context, req *proto.AppendEntryReq) 
 	s.R.mu.Lock()
 	defer s.R.mu.Unlock()
 
-	s.R.lastCommit = req.LastCommit
-	s.R.setLeader(req.Id)
+	if req.Term >= s.R.term {
+		s.R.lastPinged = time.Now()
+		s.R.lastCommit = req.LastCommit
+		s.R.setLeader(req.Id)
 
-	// Check if preceding entry exists first
-	if req.PreIndex < int64(len(s.R.log)) && s.R.log[req.PreIndex].term == req.PreTerm {
-		// Append entries to log
-		s.R.log = append(s.R.log, make([]state, len(req.Entries))...)
-		for _, e := range req.Entries {
-			s.R.log[e.Index] = state{
-				command: e.Command,
-				index:   e.Index,
-				term:    e.Term,
+		// Check if preceding entry exists first
+		if req.PreIndex < int64(len(s.R.log)) && s.R.log[req.PreIndex].term == req.PreTerm {
+			// Append entries to log
+			s.R.log = append(s.R.log, make([]state, len(req.Entries))...)
+			for _, e := range req.Entries {
+				s.R.log[e.Index] = state{
+					command: e.Command,
+					index:   e.Index,
+					term:    e.Term,
+				}
 			}
-		}
 
-		return &proto.AppendEntryResp{Ok: true}, nil
+			return &proto.AppendEntryResp{Ok: true}, nil
+		}
 	}
 	return &proto.AppendEntryResp{Ok: false}, nil
 }
@@ -43,14 +46,16 @@ func (s RaftServer) HeartBeat(ctx context.Context, req *proto.HeartBeatReq) (*pr
 	s.R.mu.Lock()
 	defer s.R.mu.Unlock()
 
-	s.R.lastPinged = time.Now()
+	if req.Term >= s.R.term {
+		s.R.lastPinged = time.Now()
 
-	if !s.R.isInit {
-		s.R.term = req.Term
-		s.R.lastCommit = req.LastCommit
-		s.R.setLeader(req.Id)
+		if !s.R.isInit {
+			s.R.term = req.Term
+			s.R.lastCommit = req.LastCommit
+			s.R.setLeader(req.Id)
 
-		// s.R.logger.Infof("Received heartbeat from %d", req.Id)
+			// s.R.logger.Infof("Received heartbeat from %d", req.Id)
+		}
 	}
 
 	return &proto.HeartBeatResp{}, nil

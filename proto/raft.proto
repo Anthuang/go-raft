@@ -34,7 +34,8 @@ message AppendEntryReq {
   int64 lastCommit = 2;
   int64 preIndex = 3;
   int64 preTerm = 4;
-  repeated Entry entries = 5;
+  int64 term = 5;
+  repeated Entry entries = 6;
 }
 
 message AppendEntryResp {
