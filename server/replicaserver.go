@@ -8,7 +8,7 @@ import (
 	"github.com/anthuang/go-raft/proto"
 )
 
-// ReplicaServer implements the server
+// ReplicaServer implements the replicas
 type ReplicaServer struct {
 	R *Replica
 }
@@ -24,15 +24,11 @@ func (s ReplicaServer) AppendEntry(ctx context.Context, req *proto.AppendEntryRe
 		s.R.setLeader(req.Id)
 
 		// Check if preceding entry exists first
-		if req.PreIndex < int64(len(s.R.log)) && s.R.log[req.PreIndex].term == req.PreTerm {
+		if req.PreIndex < int64(len(s.R.log)) && s.R.log[req.PreIndex].Term == req.PreTerm {
 			// Append entries to log
-			s.R.log = append(s.R.log, make([]state, len(req.Entries))...)
+			s.R.log = append(s.R.log, make([]*proto.Entry, len(req.Entries))...)
 			for _, e := range req.Entries {
-				s.R.log[e.Index] = state{
-					command: e.Command,
-					index:   e.Index,
-					term:    e.Term,
-				}
+				s.R.log[e.Index] = e
 			}
 
 			return &proto.AppendEntryResp{Ok: true}, nil

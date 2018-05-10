@@ -9,20 +9,15 @@ import (
 	"go.uber.org/zap"
 )
 
-type state struct {
-	command string
-	index   int64
-	term    int64
-}
-
 // Replica implements main logic for Raft replicas
 type Replica struct {
 	id           int64
 	isInit       bool
+	kvStore      map[string]string
 	lastCommit   int64
 	lastPinged   time.Time
 	leader       int64
-	log          []state
+	log          []*proto.Entry
 	logger       *zap.SugaredLogger
 	majority     int
 	mu           sync.Mutex
@@ -43,10 +38,11 @@ func NewReplica(id int64, peers []proto.ReplicaClient, peersAddrs []string, logg
 	r := &Replica{
 		id:           id,
 		isInit:       true,
+		kvStore:      make(map[string]string),
 		lastCommit:   -1,
 		lastPinged:   time.Now(),
 		leader:       -1,
-		log:          make([]state, 0),
+		log:          make([]*proto.Entry, 0),
 		logger:       logger,
 		majority:     len(peers)/2 + 1,
 		mu:           sync.Mutex{},
@@ -81,7 +77,7 @@ func (r *Replica) restart() {
 
 func (r *Replica) init() {
 	r.logger.Infof("Initializing node %d", r.id)
-	done := make(chan bool)
+	done := make(chan bool, len(r.peers))
 	for i := 0; i < len(r.peers); i++ {
 		if i == int(r.id) {
 			continue
@@ -146,21 +142,19 @@ func (r *Replica) vote() {
 					// r.logger.Infof("%d: %d returned failure for term %d", r.id, i, r.term)
 					done <- false
 				} else {
-					r.logger.Infof("%d: %d returned success for term %d", r.id, i, r.term)
+					// r.logger.Infof("%d: %d returned success for term %d", r.id, i, r.term)
 					done <- true
 				}
 			}
 		}(i, p)
 	}
 
-	r.mu.Unlock()
-
 	doneNum := 0
 	succNum := 0
 	for doneNum < len(r.peers) {
 		// Wait for all to finish unless majority responds
-		ok := <-done
-		if ok {
+		r.mu.Unlock()
+		if <-done {
 			succNum++
 		}
 		doneNum++
@@ -179,10 +173,7 @@ func (r *Replica) vote() {
 			r.heartbeat()
 			return
 		}
-		r.mu.Unlock()
 	}
-
-	r.mu.Lock()
 	r.logger.Infof("%d: Election attempt failed", r.id)
 }
 
@@ -192,9 +183,9 @@ func (r *Replica) heartbeat() {
 		if i == int(r.id) {
 			continue
 		}
-		go func(i int, p proto.ReplicaClient) {
+		go func(p proto.ReplicaClient) {
 			p.HeartBeat(context.Background(), &proto.HeartBeatReq{Id: r.id, LastCommit: r.lastCommit, Term: r.term})
-		}(i, p)
+		}(p)
 	}
 }
 
