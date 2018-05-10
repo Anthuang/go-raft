@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"log"
 	"net"
 	"testing"
@@ -13,10 +14,12 @@ import (
 	"google.golang.org/grpc/keepalive"
 )
 
-func startup(addrs []string) ([]*grpc.Server, []*grpc.ClientConn, []*Replica) {
+func startup(addrs []string, extAddrs []string) ([]*grpc.Server, []*grpc.ClientConn, []*Replica, []proto.RaftClient, []*grpc.Server) {
 	var servers []*grpc.Server
 	var connections []*grpc.ClientConn
 	var replicas []*Replica
+	var extClients []proto.RaftClient
+	var extServers []*grpc.Server
 
 	logger, _ := zap.NewDevelopment()
 	// logger := zap.NewNop()
@@ -61,8 +64,38 @@ func startup(addrs []string) ([]*grpc.Server, []*grpc.ClientConn, []*Replica) {
 		}()
 	}
 
+	if len(extAddrs) != 0 {
+		for _, a := range extAddrs {
+			cc, err := grpc.Dial(a, dialOpts...)
+			if err != nil {
+				log.Fatalf("unable to connect to host: %v", err)
+			}
+			c := proto.NewRaftClient(cc)
+			connections = append(connections, cc)
+			extClients = append(extClients, c)
+		}
+
+		for i, a := range extAddrs {
+			listener, err := net.Listen("tcp", a)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			rs := RaftServer{R: replicas[i], Clients: extClients}
+
+			s := grpc.NewServer()
+			proto.RegisterRaftServer(s, rs)
+
+			extServers = append(extServers, s)
+
+			go func() {
+				s.Serve(listener)
+			}()
+		}
+	}
+
 	time.Sleep(2 * time.Second)
-	return servers, connections, replicas
+	return servers, connections, replicas, extClients, extServers
 }
 
 func shutdown(servers []*grpc.Server, replicas []*Replica) {
@@ -102,7 +135,7 @@ func block(connections []*grpc.ClientConn, id int) {
 func TestLeaderSimple(t *testing.T) {
 	// Simple functionality
 	addrs := []string{":6000", ":6010", ":6020"}
-	servers, _, replicas := startup(addrs)
+	servers, _, replicas, _, _ := startup(addrs, make([]string, 0))
 
 	assert.Equal(t, int64(0), replicas[0].leader, "Leader should be 0")
 	assert.Equal(t, replicas[0].leader, replicas[1].leader, "Leader should be 0")
@@ -127,7 +160,7 @@ func TestLeaderSimple(t *testing.T) {
 func TestLeaderOneLeader(t *testing.T) {
 	// Only one leader can be active
 	addrs := []string{":6000", ":6010", ":6020"}
-	servers, connections, replicas := startup(addrs)
+	servers, connections, replicas, _, _ := startup(addrs, make([]string, 0))
 
 	block(connections, 1)
 	time.Sleep(1 * time.Second)
@@ -141,7 +174,7 @@ func TestLeaderOneLeader(t *testing.T) {
 func TestLeaderVoteOnce(t *testing.T) {
 	// Replicas vote once
 	addrs := []string{":6000", ":6010", ":6020"}
-	servers, _, replicas := startup(addrs)
+	servers, _, replicas, _, _ := startup(addrs, make([]string, 0))
 
 	replicas[0].timeout = 3000 * time.Millisecond
 	replicas[1].timeout = 500 * time.Millisecond
@@ -155,4 +188,15 @@ func TestLeaderVoteOnce(t *testing.T) {
 	assert.Equal(t, replicas[1].leader, replicas[2].leader, "There should only be one leader")
 
 	shutdown(servers, replicas)
+}
+
+// Log Replication tests
+func TestLogSimple(t *testing.T) {
+	addrs := []string{":6000", ":6010", ":6020"}
+	extAddrs := []string{":6100", ":6110", ":6120"}
+	servers, _, replicas, extClients, extServers := startup(addrs, extAddrs)
+
+	extClients[0].Put(context.Background(), &proto.PutReq{Key: t.Name(), Value: "00"})
+
+	shutdown(append(servers, extServers...), replicas)
 }
