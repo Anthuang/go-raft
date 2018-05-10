@@ -197,6 +197,17 @@ func TestLogSimple(t *testing.T) {
 	servers, _, replicas, extClients, extServers := startup(addrs, extAddrs)
 
 	extClients[0].Put(context.Background(), &proto.PutReq{Key: t.Name(), Value: "00"})
+	time.Sleep(200 * time.Millisecond)
+	extClients[1].Put(context.Background(), &proto.PutReq{Key: t.Name(), Value: "01"})
+	time.Sleep(200 * time.Millisecond)
+	extClients[2].Put(context.Background(), &proto.PutReq{Key: t.Name(), Value: "02"})
+	time.Sleep(200 * time.Millisecond)
+
+	for i := range replicas {
+		assert.Equal(t, "00", replicas[i].log[0].Value, "Values should match")
+		assert.Equal(t, "01", replicas[i].log[1].Value, "Values should match")
+		assert.Equal(t, "02", replicas[i].log[2].Value, "Values should match")
+	}
 
 	shutdown(append(servers, extServers...), replicas)
 }

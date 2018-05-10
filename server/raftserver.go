@@ -61,19 +61,21 @@ func (s RaftServer) Put(ctx context.Context, req *proto.PutReq) (*proto.PutResp,
 					var req *proto.AppendEntryReq
 					if next == 0 {
 						req = &proto.AppendEntryReq{
+							Entries:    entries,
 							Id:         s.R.id,
 							LastCommit: s.R.lastCommit,
 							PreIndex:   -1,
 							PreTerm:    -1,
-							Entries:    entries,
+							Term:       s.R.term,
 						}
 					} else {
 						req = &proto.AppendEntryReq{
+							Entries:    entries,
 							Id:         s.R.id,
 							LastCommit: s.R.lastCommit,
 							PreIndex:   next - 1,
 							PreTerm:    s.R.log[next-1].Term,
-							Entries:    entries,
+							Term:       s.R.term,
 						}
 					}
 					resp, err := p.AppendEntry(context.Background(), req)

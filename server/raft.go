@@ -208,6 +208,7 @@ func (r *Replica) execute(lastCommit int64) {
 			switch entry.Command {
 			case "PUT":
 				r.kvStore[entry.Key] = entry.Value
+				r.logger.Infof("%d: PUT (%s: %s) command committed", r.id, entry.Key, entry.Value)
 			}
 			r.lastCommit++
 		}
