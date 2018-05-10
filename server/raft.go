@@ -190,9 +190,26 @@ func (r *Replica) heartbeat() {
 }
 
 func (r *Replica) setLeader(id int64) {
-	// Set leader and delete voted map
+	// Set leader
 	if r.leader != id {
 		r.leader = id
-		r.voted = make(map[int64]bool)
+	}
+}
+
+func (r *Replica) execute(lastCommit int64) {
+	// Execute committed entries
+	if lastCommit > r.lastCommit {
+		for i := r.lastCommit + 1; i <= lastCommit; i++ {
+			if i >= int64(len(r.log)) {
+				// If this replica does not have all the entries yet
+				break
+			}
+			entry := r.log[i]
+			switch entry.Command {
+			case "PUT":
+				r.kvStore[entry.Key] = entry.Value
+			}
+			r.lastCommit++
+		}
 	}
 }

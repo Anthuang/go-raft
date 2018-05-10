@@ -22,6 +22,7 @@ func (s ReplicaServer) AppendEntry(ctx context.Context, req *proto.AppendEntryRe
 		s.R.lastPinged = time.Now()
 		s.R.lastCommit = req.LastCommit
 		s.R.setLeader(req.Id)
+		s.R.execute(req.LastCommit)
 
 		// Check if preceding entry exists first
 		if req.PreIndex < int64(len(s.R.log)) && s.R.log[req.PreIndex].Term == req.PreTerm {
@@ -46,10 +47,10 @@ func (s ReplicaServer) HeartBeat(ctx context.Context, req *proto.HeartBeatReq) (
 		s.R.lastPinged = time.Now()
 
 		if !s.R.isInit {
-
 			s.R.term = req.Term
 			s.R.lastCommit = req.LastCommit
 			s.R.setLeader(req.Id)
+			s.R.execute(req.LastCommit)
 
 			// s.R.logger.Infof("%d: Received heartbeat from %d", s.R.id, req.Id)
 		}
