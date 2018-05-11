@@ -14,7 +14,46 @@ type RaftServer struct {
 	Clients []proto.RaftClient
 }
 
-// Put updates a value in the replica's kvStore
+// Get returns a value
+func (s RaftServer) Get(ctx context.Context, req *proto.GetReq) (*proto.GetResp, error) {
+	s.R.mu.Lock()
+	defer s.R.mu.Unlock()
+
+	// Wait for leader election if no known leaders
+	for s.R.leader == -1 {
+		s.R.mu.Unlock()
+		time.Sleep(s.R.pingInterval)
+		s.R.mu.Lock()
+	}
+
+	done := make(chan bool, len(s.R.peers))
+
+	// Redirect request to real leader if not self
+	if s.R.leader != s.R.id {
+		var resp *proto.GetResp
+		var err error
+		go func() {
+			resp, err = s.Clients[s.R.leader].Get(ctx, req)
+			done <- true
+		}()
+		for {
+			select {
+			case <-done:
+				return resp, err
+			default:
+				s.R.mu.Unlock()
+				time.Sleep(s.R.pingInterval)
+				s.R.mu.Lock()
+			}
+		}
+	}
+
+	return &proto.GetResp{
+		Value: s.R.kvStore[req.Key],
+	}, nil
+}
+
+// Put updates a value
 func (s RaftServer) Put(ctx context.Context, req *proto.PutReq) (*proto.PutResp, error) {
 	s.R.mu.Lock()
 	defer s.R.mu.Unlock()

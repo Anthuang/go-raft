@@ -46,6 +46,7 @@ message AppendEntryResp {
 }
 
 service Raft {
+  rpc Get(GetReq) returns (GetResp) {}
   rpc Put(PutReq) returns (PutResp) {}
 }
 
@@ -55,3 +56,11 @@ message PutReq {
 }
 
 message PutResp {}
+
+message GetReq {
+  string key = 1;
+}
+
+message GetResp {
+  string value = 1;
+}

@@ -193,20 +193,21 @@ func TestLeaderVoteOnce(t *testing.T) {
 }
 
 // Log Replication tests
-func TestLogSimple(t *testing.T) {
+func TestLogPutSimple(t *testing.T) {
+	// Simple PUT functionality
 	addrs := []string{":6000", ":6010", ":6020"}
 	extAddrs := []string{":6100", ":6110", ":6120"}
 	servers, _, replicas, extClients, extServers := startup(addrs, extAddrs)
 
-	nKeys := 1000
+	nKeys := 100
 	values := make(map[string]string)
 
 	for i := 0; i < nKeys; i++ {
-		randInt := rand.Intn(len(addrs))
+		r := rand.Intn(len(addrs))
 		key := t.Name() + strconv.Itoa(i)
 		value := strconv.Itoa(i)
 		values[key] = value
-		extClients[randInt].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
+		extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
 	}
 	time.Sleep(2 * time.Second)
 
@@ -219,12 +220,44 @@ func TestLogSimple(t *testing.T) {
 	shutdown(append(servers, extServers...), replicas)
 }
 
-func TestLogConcurrent(t *testing.T) {
+func TestLogGetSimple(t *testing.T) {
+	// Simple PUT and GET functionality
 	addrs := []string{":6000", ":6010", ":6020"}
 	extAddrs := []string{":6100", ":6110", ":6120"}
 	servers, _, replicas, extClients, extServers := startup(addrs, extAddrs)
 
-	nKeys := 10
+	nKeys := 100
+	values := make(map[string]string)
+
+	for i := 0; i < nKeys; i++ {
+		r := rand.Intn(len(addrs))
+		key := t.Name() + strconv.Itoa(i)
+		value := strconv.Itoa(i)
+		values[key] = value
+		extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
+	}
+	time.Sleep(2 * time.Second)
+
+	for i := 0; i < nKeys; i++ {
+		for r := range replicas {
+			resp, err := extClients[r].Get(context.Background(), &proto.GetReq{Key: replicas[r].log[i].Key})
+			if err != nil {
+				log.Fatal(err)
+			}
+			assert.Equal(t, values[replicas[r].log[i].Key], resp.Value, "Values should match")
+		}
+	}
+
+	shutdown(append(servers, extServers...), replicas)
+}
+
+func TestLogPutConcurrent(t *testing.T) {
+	// Concurrent PUT
+	addrs := []string{":6000", ":6010", ":6020"}
+	extAddrs := []string{":6100", ":6110", ":6120"}
+	servers, _, replicas, extClients, extServers := startup(addrs, extAddrs)
+
+	nKeys := 500
 	values := make(map[string]string)
 	done := make(chan bool, nKeys)
 
@@ -233,8 +266,8 @@ func TestLogConcurrent(t *testing.T) {
 		value := strconv.Itoa(i)
 		values[key] = value
 		go func() {
-			randInt := rand.Intn(len(addrs))
-			extClients[randInt].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
+			r := rand.Intn(len(addrs))
+			extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
 			done <- true
 		}()
 	}
@@ -248,6 +281,51 @@ func TestLogConcurrent(t *testing.T) {
 		for r := range replicas {
 			assert.Equal(t, values[replicas[r].log[i].Key], replicas[r].log[i].Value, "Values should match")
 		}
+	}
+
+	shutdown(append(servers, extServers...), replicas)
+}
+
+func TestLogGetConcurrent(t *testing.T) {
+	// Concurrent PUT and GET
+	addrs := []string{":6000", ":6010", ":6020"}
+	extAddrs := []string{":6100", ":6110", ":6120"}
+	servers, _, replicas, extClients, extServers := startup(addrs, extAddrs)
+
+	nKeys := 500
+	values := make(map[string]string)
+	done := make(chan bool, nKeys)
+
+	for i := 0; i < nKeys; i++ {
+		key := t.Name() + strconv.Itoa(i)
+		value := strconv.Itoa(i)
+		values[key] = value
+		go func() {
+			r := rand.Intn(len(addrs))
+			extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
+			done <- true
+		}()
+	}
+
+	for i := 0; i < nKeys; i++ {
+		<-done
+	}
+	time.Sleep(2 * time.Second)
+
+	for i := 0; i < nKeys; i++ {
+		r := rand.Intn(len(addrs))
+		key := replicas[r].log[i].Key
+		go func() {
+			resp, err := extClients[r].Get(context.Background(), &proto.GetReq{Key: key})
+			if err != nil {
+				log.Fatal(err)
+			}
+			assert.Equal(t, values[key], resp.Value, "Values should match")
+			done <- true
+		}()
+	}
+	for i := 0; i < nKeys; i++ {
+		<-done
 	}
 
 	shutdown(append(servers, extServers...), replicas)
