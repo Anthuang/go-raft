@@ -137,7 +137,7 @@ func (r *Replica) vote() {
 				done <- true
 			} else {
 				// r.logger.Infof("%d sending to %d", r.id, i)
-				_, err := p.Vote(context.Background(), &proto.VoteReq{Id: r.id, Term: r.term})
+				_, err := p.Vote(context.Background(), &proto.VoteReq{Id: r.id, LastIndex: int64(len(r.log) - 1), Term: r.term})
 				if err != nil {
 					// r.logger.Infof("%d: %d returned failure for term %d", r.id, i, r.term)
 					done <- false
@@ -208,7 +208,7 @@ func (r *Replica) execute(lastCommit int64) {
 			switch entry.Command {
 			case "PUT":
 				r.kvStore[entry.Key] = entry.Value
-				r.logger.Infof("%d: PUT (%s: %s) command committed", r.id, entry.Key, entry.Value)
+				// r.logger.Infof("%d: PUT (%s: %s) command committed", r.id, entry.Key, entry.Value)
 			}
 			r.lastCommit++
 		}

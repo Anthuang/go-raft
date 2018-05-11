@@ -3,7 +3,9 @@ package server
 import (
 	"context"
 	"log"
+	"math/rand"
 	"net"
+	"strconv"
 	"testing"
 	"time"
 
@@ -138,21 +140,21 @@ func TestLeaderSimple(t *testing.T) {
 	servers, _, replicas, _, _ := startup(addrs, make([]string, 0))
 
 	assert.Equal(t, int64(0), replicas[0].leader, "Leader should be 0")
-	assert.Equal(t, replicas[0].leader, replicas[1].leader, "Leader should be 0")
-	assert.Equal(t, replicas[0].leader, replicas[2].leader, "Leader should be 0")
+	assert.Equal(t, int64(0), replicas[1].leader, "Leader should be 0")
+	assert.Equal(t, int64(0), replicas[2].leader, "Leader should be 0")
 
 	kill(servers, replicas, 0)
 	time.Sleep(1 * time.Second)
 
 	assert.Equal(t, int64(1), replicas[1].leader, "Leader should be 1")
-	assert.Equal(t, replicas[1].leader, replicas[2].leader, "Leader should be 1")
+	assert.Equal(t, int64(1), replicas[2].leader, "Leader should be 1")
 
 	restart(servers, replicas, addrs, 0)
 	kill(servers, replicas, 1)
 	time.Sleep(1 * time.Second)
 
 	assert.Equal(t, int64(0), replicas[0].leader, "Leader should be 0")
-	assert.Equal(t, replicas[0].leader, replicas[2].leader, "Leader should be 0")
+	assert.Equal(t, int64(0), replicas[2].leader, "Leader should be 0")
 
 	shutdown(servers, replicas)
 }
@@ -196,17 +198,56 @@ func TestLogSimple(t *testing.T) {
 	extAddrs := []string{":6100", ":6110", ":6120"}
 	servers, _, replicas, extClients, extServers := startup(addrs, extAddrs)
 
-	extClients[0].Put(context.Background(), &proto.PutReq{Key: t.Name(), Value: "00"})
-	time.Sleep(200 * time.Millisecond)
-	extClients[1].Put(context.Background(), &proto.PutReq{Key: t.Name(), Value: "01"})
-	time.Sleep(200 * time.Millisecond)
-	extClients[2].Put(context.Background(), &proto.PutReq{Key: t.Name(), Value: "02"})
-	time.Sleep(200 * time.Millisecond)
+	nKeys := 1000
+	values := make(map[string]string)
 
-	for i := range replicas {
-		assert.Equal(t, "00", replicas[i].log[0].Value, "Values should match")
-		assert.Equal(t, "01", replicas[i].log[1].Value, "Values should match")
-		assert.Equal(t, "02", replicas[i].log[2].Value, "Values should match")
+	for i := 0; i < nKeys; i++ {
+		randInt := rand.Intn(len(addrs))
+		key := t.Name() + strconv.Itoa(i)
+		value := strconv.Itoa(i)
+		values[key] = value
+		extClients[randInt].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
+	}
+	time.Sleep(2 * time.Second)
+
+	for i := 0; i < nKeys; i++ {
+		for r := range replicas {
+			assert.Equal(t, values[replicas[r].log[i].Key], replicas[r].log[i].Value, "Values should match")
+		}
+	}
+
+	shutdown(append(servers, extServers...), replicas)
+}
+
+func TestLogConcurrent(t *testing.T) {
+	addrs := []string{":6000", ":6010", ":6020"}
+	extAddrs := []string{":6100", ":6110", ":6120"}
+	servers, _, replicas, extClients, extServers := startup(addrs, extAddrs)
+
+	nKeys := 10
+	values := make(map[string]string)
+	done := make(chan bool, nKeys)
+
+	for i := 0; i < nKeys; i++ {
+		key := t.Name() + strconv.Itoa(i)
+		value := strconv.Itoa(i)
+		values[key] = value
+		go func() {
+			randInt := rand.Intn(len(addrs))
+			extClients[randInt].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
+			done <- true
+		}()
+	}
+
+	for i := 0; i < nKeys; i++ {
+		<-done
+	}
+	time.Sleep(2 * time.Second)
+
+	for i := 0; i < nKeys; i++ {
+		for r := range replicas {
+			assert.Equal(t, values[replicas[r].log[i].Key], replicas[r].log[i].Value, "Values should match")
+		}
 	}
 
 	shutdown(append(servers, extServers...), replicas)

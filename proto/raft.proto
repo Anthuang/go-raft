@@ -10,7 +10,8 @@ service Replica {
 
 message VoteReq {
   int64 id = 1;
-  int64 term = 2;
+  int64 lastIndex = 2;
+  int64 term = 3;
 }
 
 message VoteResp {}

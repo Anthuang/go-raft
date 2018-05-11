@@ -22,16 +22,32 @@ func (s RaftServer) Put(ctx context.Context, req *proto.PutReq) (*proto.PutResp,
 	// Wait for leader election if no known leaders
 	for s.R.leader == -1 {
 		s.R.mu.Unlock()
-		time.Sleep(s.R.timeout)
+		time.Sleep(s.R.pingInterval)
 		s.R.mu.Lock()
 	}
 
+	done := make(chan bool, len(s.R.peers))
+
 	// Redirect request to real leader if not self
 	if s.R.leader != s.R.id {
-		return s.Clients[s.R.leader].Put(ctx, req)
+		var resp *proto.PutResp
+		var err error
+		go func() {
+			resp, err = s.Clients[s.R.leader].Put(ctx, req)
+			done <- true
+		}()
+		for {
+			select {
+			case <-done:
+				return resp, err
+			default:
+				s.R.mu.Unlock()
+				time.Sleep(s.R.pingInterval)
+				s.R.mu.Lock()
+			}
+		}
 	}
 
-	done := make(chan bool, len(s.R.peers))
 	newIndex := int64(len(s.R.log))
 
 	var entries []*proto.Entry
@@ -44,6 +60,7 @@ func (s RaftServer) Put(ctx context.Context, req *proto.PutReq) (*proto.PutResp,
 	}
 	// Append new entry to own log
 	s.R.log = append(s.R.log, newEntry)
+	// s.R.logger.Infof("%d: %v %d", s.R.id, s.R.log, len(s.R.log))
 
 	for i, p := range s.R.peers {
 		go func(i int, p proto.ReplicaClient) {
@@ -78,6 +95,7 @@ func (s RaftServer) Put(ctx context.Context, req *proto.PutReq) (*proto.PutResp,
 							Term:       s.R.term,
 						}
 					}
+					// s.R.logger.Infof("%d: Sending AppendEntry to %d", s.R.id, i)
 					resp, err := p.AppendEntry(context.Background(), req)
 					if err == nil {
 						if resp.Ok {
@@ -109,7 +127,7 @@ func (s RaftServer) Put(ctx context.Context, req *proto.PutReq) (*proto.PutResp,
 		s.R.mu.Lock()
 		if succNum >= s.R.majority {
 			// Entry appended at majority, can apply operation
-			s.R.logger.Infof("%d: Entry appended at majority", s.R.id)
+			// s.R.logger.Infof("%d: Entry appended at majority", s.R.id)
 			s.R.lastCommit++
 			s.R.kvStore[req.Key] = req.Value
 
