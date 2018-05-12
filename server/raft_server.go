@@ -167,8 +167,8 @@ func (s RaftServer) Put(ctx context.Context, req *proto.PutReq) (*proto.PutResp,
 		if succNum >= s.R.majority {
 			// Entry appended at majority, can apply operation
 			// s.R.logger.Infof("%d: Entry appended at majority", s.R.id)
-			s.R.lastCommit++
-			s.R.kvStore[req.Key] = req.Value
+			s.R.lastCommit = newIndex
+			s.R.execute()
 
 			return &proto.PutResp{}, nil
 		}

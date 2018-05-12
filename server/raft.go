@@ -11,6 +11,7 @@ import (
 
 // Replica implements main logic for Raft replicas
 type Replica struct {
+	execUpTo     int64
 	id           int64
 	isInit       bool
 	kvStore      map[string]string
@@ -36,6 +37,7 @@ type Replica struct {
 // NewReplica creates a new Replica object
 func NewReplica(id int64, peers []proto.ReplicaClient, peersAddrs []string, logger *zap.SugaredLogger) *Replica {
 	r := &Replica{
+		execUpTo:     -1,
 		id:           id,
 		isInit:       true,
 		kvStore:      make(map[string]string),
@@ -196,10 +198,10 @@ func (r *Replica) setLeader(id int64) {
 	}
 }
 
-func (r *Replica) execute(lastCommit int64) {
+func (r *Replica) execute() {
 	// Execute committed entries
-	if lastCommit > r.lastCommit {
-		for i := r.lastCommit + 1; i <= lastCommit; i++ {
+	if r.execUpTo < r.lastCommit {
+		for i := r.execUpTo + 1; i <= r.lastCommit; i++ {
 			if i >= int64(len(r.log)) {
 				// If this replica does not have all the entries yet
 				break
@@ -210,7 +212,7 @@ func (r *Replica) execute(lastCommit int64) {
 				r.kvStore[entry.Key] = entry.Value
 				// r.logger.Infof("%d: PUT (%s: %s) command committed", r.id, entry.Key, entry.Value)
 			}
-			r.lastCommit++
+			r.execUpTo++
 		}
 	}
 }
