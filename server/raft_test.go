@@ -127,6 +127,23 @@ func restart(servers []*grpc.Server, replicas []*Replica, addrs []string, id int
 		s.Serve(listener)
 	}()
 	replicas[id].restart()
+
+	// var dialOpts []grpc.DialOption
+	// dialOpts = append(dialOpts, grpc.WithInsecure())
+	// dialOpts = append(dialOpts, grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: 3 * time.Second}))
+
+	// cc, err := grpc.Dial(addrs[id], dialOpts...)
+	// if err != nil {
+	// 	log.Fatalf("unable to connect to host: %v", err)
+	// }
+	// c := proto.NewReplicaClient(cc)
+
+	// for i, r := range replicas {
+	// 	if i == id {
+	// 		continue
+	// 	}
+	// 	r.peers[id] = c
+	// }
 }
 
 func block(connections []*grpc.ClientConn, id int) {
@@ -332,7 +349,7 @@ func TestLogGetConcurrent(t *testing.T) {
 }
 
 func TestLogFailureSimple(t *testing.T) {
-	// Log replication amidst failures
+	// Log replication amidst failure
 	addrs := []string{":6000", ":6010", ":6020"}
 	extAddrs := []string{":6100", ":6110", ":6120"}
 	servers, _, replicas, extClients, extServers := startup(addrs, extAddrs)
@@ -349,7 +366,6 @@ func TestLogFailureSimple(t *testing.T) {
 	}
 
 	// Kill 0
-	time.Sleep(1 * time.Second)
 	kill(servers, replicas, 0)
 	time.Sleep(1 * time.Second)
 
@@ -367,6 +383,62 @@ func TestLogFailureSimple(t *testing.T) {
 			if r == 0 {
 				continue
 			}
+			resp, err := extClients[r].Get(context.Background(), &proto.GetReq{Key: replicas[r].log[i].Key})
+			if err != nil {
+				log.Fatal(err)
+			}
+			assert.Equal(t, values[replicas[r].log[i].Key], resp.Value, "Values should match")
+		}
+	}
+
+	shutdown(append(servers, extServers...), replicas)
+}
+
+func TestLogFailureRestart(t *testing.T) {
+	// Log replication amidst failure and restart
+	addrs := []string{":6000", ":6010", ":6020"}
+	extAddrs := []string{":6100", ":6110", ":6120"}
+	servers, _, replicas, extClients, extServers := startup(addrs, extAddrs)
+
+	nKeys := 50
+	values := make(map[string]string)
+
+	for i := 0; i < nKeys/3; i++ {
+		r := rand.Intn(len(addrs))
+		key := t.Name() + strconv.Itoa(i)
+		value := strconv.Itoa(i)
+		values[key] = value
+		extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
+	}
+
+	// Kill 0
+	kill(servers, replicas, 0)
+	time.Sleep(1 * time.Second)
+
+	for i := nKeys / 3; i < 2*nKeys/3; i++ {
+		r := rand.Intn(len(addrs)-1) + 1
+		key := t.Name() + strconv.Itoa(i)
+		value := strconv.Itoa(i)
+		values[key] = value
+		extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
+	}
+
+	// Restart 0
+	restart(servers, replicas, addrs, 0)
+	time.Sleep(1 * time.Second)
+
+	for i := 2 * nKeys / 3; i < nKeys; i++ {
+		r := rand.Intn(len(addrs))
+		key := t.Name() + strconv.Itoa(i)
+		value := strconv.Itoa(i)
+		values[key] = value
+		extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
+	}
+
+	time.Sleep(2 * time.Second)
+
+	for i := 0; i < nKeys; i++ {
+		for r := range replicas {
 			resp, err := extClients[r].Get(context.Background(), &proto.GetReq{Key: replicas[r].log[i].Key})
 			if err != nil {
 				log.Fatal(err)

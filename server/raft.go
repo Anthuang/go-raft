@@ -74,6 +74,7 @@ func (r *Replica) start() {
 func (r *Replica) restart() {
 	r.leader = -1
 	r.shutdown = false
+	r.lastPinged = time.Now()
 	go r.run()
 }
 
