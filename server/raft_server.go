@@ -10,8 +10,7 @@ import (
 
 // RaftServer implements the raft server
 type RaftServer struct {
-	R       *Replica
-	Clients []proto.RaftClient
+	R *Replica
 }
 
 // Get returns a value
@@ -33,7 +32,7 @@ func (s RaftServer) Get(ctx context.Context, req *proto.GetReq) (*proto.GetResp,
 		var resp *proto.GetResp
 		var err error
 		go func() {
-			resp, err = s.Clients[s.R.leader].Get(ctx, req)
+			resp, err = s.R.extPeers[s.R.leader].Get(ctx, req)
 			done <- true
 		}()
 		for {
@@ -72,7 +71,7 @@ func (s RaftServer) Put(ctx context.Context, req *proto.PutReq) (*proto.PutResp,
 		var resp *proto.PutResp
 		var err error
 		go func() {
-			resp, err = s.Clients[s.R.leader].Put(ctx, req)
+			resp, err = s.R.extPeers[s.R.leader].Put(ctx, req)
 			done <- true
 		}()
 		for {

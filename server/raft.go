@@ -12,6 +12,7 @@ import (
 // Replica implements main logic for Raft replicas
 type Replica struct {
 	execUpTo     int64
+	extPeers     []proto.RaftClient
 	id           int64
 	isInit       bool
 	kvStore      map[string]string
@@ -35,9 +36,10 @@ type Replica struct {
 }
 
 // NewReplica creates a new Replica object
-func NewReplica(id int64, peers []proto.ReplicaClient, peersAddrs []string, logger *zap.SugaredLogger) *Replica {
+func NewReplica(id int64, peers []proto.ReplicaClient, peersAddrs []string, extPeers []proto.RaftClient, logger *zap.SugaredLogger) *Replica {
 	r := &Replica{
 		execUpTo:     -1,
+		extPeers:     extPeers,
 		id:           id,
 		isInit:       true,
 		kvStore:      make(map[string]string),
@@ -186,9 +188,12 @@ func (r *Replica) heartbeat() {
 		if i == int(r.id) {
 			continue
 		}
-		go func(p proto.ReplicaClient) {
-			p.HeartBeat(context.Background(), &proto.HeartBeatReq{Id: r.id, LastCommit: r.lastCommit, Term: r.term})
-		}(p)
+		go func(i int, p proto.ReplicaClient) {
+			_, err := p.HeartBeat(context.Background(), &proto.HeartBeatReq{Id: r.id, LastCommit: r.lastCommit, Term: r.term})
+			if err != nil {
+				// r.logger.Infof("%d: Error from %d: %s", r.id, i, err)
+			}
+		}(i, p)
 	}
 }
 
