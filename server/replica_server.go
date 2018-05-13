@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"sort"
 	"time"
 
 	"github.com/anthuang/go-raft/proto"
@@ -27,11 +28,15 @@ func (s ReplicaServer) AppendEntry(ctx context.Context, req *proto.AppendEntryRe
 		// Check if preceding entry exists first, unless first entry
 		if req.PreIndex == -1 || (req.PreIndex < int64(len(s.R.log)) && s.R.log[req.PreIndex].Term == req.PreTerm) {
 			// Append entries to log
-			numNeed := req.Entries[len(req.Entries)-1].Index + 1 - int64(len(s.R.log))
+			entries := req.Entries
+			sort.Slice(entries, func(i, j int) bool { return entries[i].Index < entries[j].Index })
+
+			numNeed := entries[len(entries)-1].Index + 1 - int64(len(s.R.log))
 			if numNeed > 0 {
 				s.R.log = append(s.R.log, make([]*proto.Entry, numNeed)...)
 			}
-			for _, e := range req.Entries {
+			for _, e := range entries {
+				// s.R.logger.Infof("%d: %d %d %d", s.R.id, req.PreIndex, len(s.R.log), e.Index)
 				s.R.log[e.Index] = e
 			}
 			// s.R.logger.Infof("%d: %v %d", s.R.id, s.R.log, len(s.R.log))

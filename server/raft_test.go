@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,7 +17,17 @@ import (
 	"google.golang.org/grpc/keepalive"
 )
 
-func startup(addrs []string, extAddrs []string) ([]*grpc.Server, []*grpc.ClientConn, []*Replica, []proto.RaftClient, []*grpc.Server) {
+type config struct {
+	addrs       []string
+	connections []*grpc.ClientConn
+	extAddrs    []string
+	extClients  []proto.RaftClient
+	extServers  []*grpc.Server
+	servers     []*grpc.Server
+	replicas    []*Replica
+}
+
+func startup(addrs []string, extAddrs []string) *config {
 	var servers []*grpc.Server
 	var connections []*grpc.ClientConn
 	var replicas []*Replica
@@ -43,29 +54,6 @@ func startup(addrs []string, extAddrs []string) ([]*grpc.Server, []*grpc.ClientC
 		clients = append(clients, c)
 	}
 
-	for i, a := range addrs {
-		listener, err := net.Listen("tcp", a)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		r := NewReplica(int64(i), clients, addrs, sugar)
-		rs := ReplicaServer{R: r}
-
-		replicas = append(replicas, r)
-
-		s := grpc.NewServer()
-		proto.RegisterReplicaServer(s, rs)
-
-		servers = append(servers, s)
-
-		r.timeout = time.Duration(r.id*100+500) * time.Millisecond
-
-		go func() {
-			s.Serve(listener)
-		}()
-	}
-
 	if len(extAddrs) != 0 {
 		for _, a := range extAddrs {
 			cc, err := grpc.Dial(a, dialOpts...)
@@ -83,7 +71,12 @@ func startup(addrs []string, extAddrs []string) ([]*grpc.Server, []*grpc.ClientC
 				log.Fatal(err)
 			}
 
-			rs := RaftServer{R: replicas[i], Clients: extClients}
+			r := NewReplica(int64(i), clients, addrs, extClients, sugar)
+			rs := RaftServer{R: r}
+
+			replicas = append(replicas, r)
+
+			r.timeout = time.Duration(r.id*100+500) * time.Millisecond
 
 			s := grpc.NewServer()
 			proto.RegisterRaftServer(s, rs)
@@ -94,10 +87,41 @@ func startup(addrs []string, extAddrs []string) ([]*grpc.Server, []*grpc.ClientC
 				s.Serve(listener)
 			}()
 		}
+	} else {
+		for i := range addrs {
+			r := NewReplica(int64(i), clients, addrs, nil, sugar)
+			replicas = append(replicas, r)
+		}
+	}
+
+	for i, a := range addrs {
+		listener, err := net.Listen("tcp", a)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		rs := ReplicaServer{R: replicas[i]}
+
+		s := grpc.NewServer()
+		proto.RegisterReplicaServer(s, rs)
+
+		servers = append(servers, s)
+
+		go func() {
+			s.Serve(listener)
+		}()
 	}
 
 	time.Sleep(2 * time.Second)
-	return servers, connections, replicas, extClients, extServers
+	return &config{
+		addrs:       addrs,
+		extAddrs:    extAddrs,
+		connections: connections,
+		extClients:  extClients,
+		extServers:  extServers,
+		servers:     servers,
+		replicas:    replicas,
+	}
 }
 
 func shutdown(servers []*grpc.Server, replicas []*Replica) {
@@ -109,104 +133,160 @@ func shutdown(servers []*grpc.Server, replicas []*Replica) {
 	}
 }
 
-func kill(servers []*grpc.Server, replicas []*Replica, id int) {
-	servers[id].Stop()
-	replicas[id].shutdown = true
+func kill(c *config, id int) {
+	c.servers[id].Stop()
+	c.replicas[id].shutdown = true
 }
 
-func restart(servers []*grpc.Server, replicas []*Replica, addrs []string, id int) {
-	listener, err := net.Listen("tcp", addrs[id])
+func killExt(c *config, id int) {
+	c.servers[id].Stop()
+	c.extServers[id].Stop()
+	c.replicas[id].shutdown = true
+}
+
+func restart(c *config, id int) {
+	listener, err := net.Listen("tcp", c.addrs[id])
 	if err != nil {
 		log.Fatal(err)
 	}
 	s := grpc.NewServer()
-	rs := ReplicaServer{R: replicas[id]}
+	rs := ReplicaServer{R: c.replicas[id]}
 	proto.RegisterReplicaServer(s, rs)
-	servers[id] = s
+	c.servers[id] = s
 	go func() {
 		s.Serve(listener)
 	}()
-	replicas[id].restart()
 
-	// var dialOpts []grpc.DialOption
-	// dialOpts = append(dialOpts, grpc.WithInsecure())
-	// dialOpts = append(dialOpts, grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: 3 * time.Second}))
+	var dialOpts []grpc.DialOption
+	dialOpts = append(dialOpts, grpc.WithInsecure())
+	dialOpts = append(dialOpts, grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: 3 * time.Second}))
+	cc, err := grpc.Dial(c.addrs[id], dialOpts...)
+	if err != nil {
+		log.Fatalf("unable to connect to host: %v", err)
+	}
+	client := proto.NewReplicaClient(cc)
+	for i, r := range c.replicas {
+		if i == id {
+			continue
+		}
+		r.peers[id] = client
+	}
 
-	// cc, err := grpc.Dial(addrs[id], dialOpts...)
-	// if err != nil {
-	// 	log.Fatalf("unable to connect to host: %v", err)
-	// }
-	// c := proto.NewReplicaClient(cc)
-
-	// for i, r := range replicas {
-	// 	if i == id {
-	// 		continue
-	// 	}
-	// 	r.peers[id] = c
-	// }
+	c.replicas[id].restart()
 }
 
-func block(connections []*grpc.ClientConn, id int) {
-	connections[id].Close()
+func restartExt(c *config, id int) {
+	listener, err := net.Listen("tcp", c.addrs[id])
+	if err != nil {
+		log.Fatal(err)
+	}
+	s := grpc.NewServer()
+	rs := ReplicaServer{R: c.replicas[id]}
+	proto.RegisterReplicaServer(s, rs)
+	c.servers[id] = s
+	go func() {
+		s.Serve(listener)
+	}()
+
+	listenerExt, err := net.Listen("tcp", c.extAddrs[id])
+	if err != nil {
+		log.Fatal(err)
+	}
+	se := grpc.NewServer()
+	rse := RaftServer{R: c.replicas[id]}
+	proto.RegisterRaftServer(se, rse)
+	c.extServers[id] = se
+	go func() {
+		se.Serve(listenerExt)
+	}()
+
+	var dialOpts []grpc.DialOption
+	dialOpts = append(dialOpts, grpc.WithInsecure())
+	dialOpts = append(dialOpts, grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: 3 * time.Second}))
+	cc, err := grpc.Dial(c.addrs[id], dialOpts...)
+	if err != nil {
+		log.Fatalf("unable to connect to host: %v", err)
+	}
+	client := proto.NewReplicaClient(cc)
+
+	ccExt, err := grpc.Dial(c.extAddrs[id], dialOpts...)
+	if err != nil {
+		log.Fatalf("unable to connect to host: %v", err)
+	}
+	clientExt := proto.NewRaftClient(ccExt)
+	c.extClients[id] = clientExt
+	for i, r := range c.replicas {
+		if i == id {
+			continue
+		}
+		r.peers[id] = client
+		r.extPeers[id] = clientExt
+	}
+
+	c.replicas[id].restart()
+}
+
+func block(c *config, id int) {
+	c.connections[id].Close()
 }
 
 // Leader election tests
 func TestLeaderSimple(t *testing.T) {
 	// Simple functionality
 	addrs := []string{":6000", ":6010", ":6020"}
-	servers, _, replicas, _, _ := startup(addrs, make([]string, 0))
+	c := startup(addrs, make([]string, 0))
 
-	assert.Equal(t, int64(0), replicas[0].leader, "Leader should be 0")
-	assert.Equal(t, int64(0), replicas[1].leader, "Leader should be 0")
-	assert.Equal(t, int64(0), replicas[2].leader, "Leader should be 0")
+	assert.Equal(t, int64(0), c.replicas[0].leader, "Leader should be 0")
+	assert.Equal(t, int64(0), c.replicas[1].leader, "Leader should be 0")
+	assert.Equal(t, int64(0), c.replicas[2].leader, "Leader should be 0")
 
-	kill(servers, replicas, 0)
+	kill(c, 0)
 	time.Sleep(1 * time.Second)
 
-	assert.Equal(t, int64(1), replicas[1].leader, "Leader should be 1")
-	assert.Equal(t, int64(1), replicas[2].leader, "Leader should be 1")
+	assert.Equal(t, int64(1), c.replicas[1].leader, "Leader should be 1")
+	assert.Equal(t, int64(1), c.replicas[2].leader, "Leader should be 1")
 
-	restart(servers, replicas, addrs, 0)
-	kill(servers, replicas, 1)
+	restart(c, 0)
+	kill(c, 1)
 	time.Sleep(1 * time.Second)
 
-	assert.Equal(t, int64(0), replicas[0].leader, "Leader should be 0")
-	assert.Equal(t, int64(0), replicas[2].leader, "Leader should be 0")
+	assert.Equal(t, int64(0), c.replicas[0].leader, "Leader should be 0")
+	assert.Equal(t, int64(0), c.replicas[2].leader, "Leader should be 0")
 
-	shutdown(servers, replicas)
+	shutdown(c.servers, c.replicas)
 }
 
 func TestLeaderOneLeader(t *testing.T) {
 	// Only one leader can be active
 	addrs := []string{":6000", ":6010", ":6020"}
-	servers, connections, replicas, _, _ := startup(addrs, make([]string, 0))
+	c := startup(addrs, make([]string, 0))
 
-	block(connections, 1)
+	block(c, 1)
 	time.Sleep(1 * time.Second)
 
-	assert.Equal(t, replicas[0].leader, replicas[1].leader, "There should only be one leader")
-	assert.Equal(t, replicas[1].leader, replicas[2].leader, "There should only be one leader")
+	assert.Equal(t, c.replicas[0].leader, c.replicas[1].leader, "There should only be one leader")
+	assert.Equal(t, c.replicas[1].leader, c.replicas[2].leader, "There should only be one leader")
 
-	shutdown(servers, replicas)
+	shutdown(c.servers, c.replicas)
 }
 
 func TestLeaderVoteOnce(t *testing.T) {
 	// Replicas vote once
 	addrs := []string{":6000", ":6010", ":6020"}
-	servers, _, replicas, _, _ := startup(addrs, make([]string, 0))
+	c := startup(addrs, make([]string, 0))
 
-	replicas[0].timeout = 3000 * time.Millisecond
-	replicas[1].timeout = 500 * time.Millisecond
-	replicas[2].timeout = 500 * time.Millisecond
+	c.replicas[0].timeout = 3000 * time.Millisecond
+	c.replicas[1].timeout = 500 * time.Millisecond
+	c.replicas[2].timeout = 500 * time.Millisecond
 
-	kill(servers, replicas, 0)
-	restart(servers, replicas, addrs, 0)
+	kill(c, 0)
+	restart(c, 0)
 	time.Sleep(3 * time.Second)
 
-	assert.Equal(t, replicas[0].leader, replicas[1].leader, "There should only be one leader")
-	assert.Equal(t, replicas[1].leader, replicas[2].leader, "There should only be one leader")
+	assert.Equal(t, c.replicas[0].leader, c.replicas[1].leader, "There should only be one leader")
+	assert.Equal(t, c.replicas[1].leader, c.replicas[2].leader, "There should only be one leader")
 
-	shutdown(servers, replicas)
+	shutdown(c.servers, c.replicas)
 }
 
 // Log Replication tests
@@ -214,7 +294,7 @@ func TestLogPutSimple(t *testing.T) {
 	// Simple PUT functionality
 	addrs := []string{":6000", ":6010", ":6020"}
 	extAddrs := []string{":6100", ":6110", ":6120"}
-	servers, _, replicas, extClients, extServers := startup(addrs, extAddrs)
+	c := startup(addrs, extAddrs)
 
 	nKeys := 50
 	values := make(map[string]string)
@@ -224,24 +304,24 @@ func TestLogPutSimple(t *testing.T) {
 		key := t.Name() + strconv.Itoa(i)
 		value := strconv.Itoa(i)
 		values[key] = value
-		extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
+		c.extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
 	}
 	time.Sleep(2 * time.Second)
 
 	for i := 0; i < nKeys; i++ {
-		for r := range replicas {
-			assert.Equal(t, values[replicas[r].log[i].Key], replicas[r].log[i].Value, "Values should match")
+		for r := range c.replicas {
+			assert.Equal(t, values[c.replicas[r].log[i].Key], c.replicas[r].log[i].Value, "Values should match")
 		}
 	}
 
-	shutdown(append(servers, extServers...), replicas)
+	shutdown(append(c.servers, c.extServers...), c.replicas)
 }
 
 func TestLogGetSimple(t *testing.T) {
 	// Simple PUT and GET functionality
 	addrs := []string{":6000", ":6010", ":6020"}
 	extAddrs := []string{":6100", ":6110", ":6120"}
-	servers, _, replicas, extClients, extServers := startup(addrs, extAddrs)
+	c := startup(addrs, extAddrs)
 
 	nKeys := 50
 	values := make(map[string]string)
@@ -251,28 +331,28 @@ func TestLogGetSimple(t *testing.T) {
 		key := t.Name() + strconv.Itoa(i)
 		value := strconv.Itoa(i)
 		values[key] = value
-		extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
+		c.extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
 	}
 	time.Sleep(2 * time.Second)
 
 	for i := 0; i < nKeys; i++ {
-		for r := range replicas {
-			resp, err := extClients[r].Get(context.Background(), &proto.GetReq{Key: replicas[r].log[i].Key})
+		for r := range c.replicas {
+			resp, err := c.extClients[r].Get(context.Background(), &proto.GetReq{Key: c.replicas[r].log[i].Key})
 			if err != nil {
 				log.Fatal(err)
 			}
-			assert.Equal(t, values[replicas[r].log[i].Key], resp.Value, "Values should match")
+			assert.Equal(t, values[c.replicas[r].log[i].Key], resp.Value, "Values should match")
 		}
 	}
 
-	shutdown(append(servers, extServers...), replicas)
+	shutdown(append(c.servers, c.extServers...), c.replicas)
 }
 
 func TestLogPutConcurrent(t *testing.T) {
 	// Concurrent PUT
 	addrs := []string{":6000", ":6010", ":6020"}
 	extAddrs := []string{":6100", ":6110", ":6120"}
-	servers, _, replicas, extClients, extServers := startup(addrs, extAddrs)
+	c := startup(addrs, extAddrs)
 
 	nKeys := 500
 	values := make(map[string]string)
@@ -284,7 +364,7 @@ func TestLogPutConcurrent(t *testing.T) {
 		values[key] = value
 		go func() {
 			r := rand.Intn(len(addrs))
-			extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
+			c.extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
 			done <- true
 		}()
 	}
@@ -295,19 +375,19 @@ func TestLogPutConcurrent(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	for i := 0; i < nKeys; i++ {
-		for r := range replicas {
-			assert.Equal(t, values[replicas[r].log[i].Key], replicas[r].log[i].Value, "Values should match")
+		for r := range c.replicas {
+			assert.Equal(t, values[c.replicas[r].log[i].Key], c.replicas[r].log[i].Value, "Values should match")
 		}
 	}
 
-	shutdown(append(servers, extServers...), replicas)
+	shutdown(append(c.servers, c.extServers...), c.replicas)
 }
 
 func TestLogGetConcurrent(t *testing.T) {
 	// Concurrent PUT and GET
 	addrs := []string{":6000", ":6010", ":6020"}
 	extAddrs := []string{":6100", ":6110", ":6120"}
-	servers, _, replicas, extClients, extServers := startup(addrs, extAddrs)
+	c := startup(addrs, extAddrs)
 
 	nKeys := 500
 	values := make(map[string]string)
@@ -319,7 +399,7 @@ func TestLogGetConcurrent(t *testing.T) {
 		values[key] = value
 		go func() {
 			r := rand.Intn(len(addrs))
-			extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
+			c.extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
 			done <- true
 		}()
 	}
@@ -331,9 +411,9 @@ func TestLogGetConcurrent(t *testing.T) {
 
 	for i := 0; i < nKeys; i++ {
 		r := rand.Intn(len(addrs))
-		key := replicas[r].log[i].Key
+		key := c.replicas[r].log[i].Key
 		go func() {
-			resp, err := extClients[r].Get(context.Background(), &proto.GetReq{Key: key})
+			resp, err := c.extClients[r].Get(context.Background(), &proto.GetReq{Key: key})
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -345,14 +425,14 @@ func TestLogGetConcurrent(t *testing.T) {
 		<-done
 	}
 
-	shutdown(append(servers, extServers...), replicas)
+	shutdown(append(c.servers, c.extServers...), c.replicas)
 }
 
 func TestLogFailureSimple(t *testing.T) {
 	// Log replication amidst failure
 	addrs := []string{":6000", ":6010", ":6020"}
 	extAddrs := []string{":6100", ":6110", ":6120"}
-	servers, _, replicas, extClients, extServers := startup(addrs, extAddrs)
+	c := startup(addrs, extAddrs)
 
 	nKeys := 50
 	values := make(map[string]string)
@@ -362,11 +442,11 @@ func TestLogFailureSimple(t *testing.T) {
 		key := t.Name() + strconv.Itoa(i)
 		value := strconv.Itoa(i)
 		values[key] = value
-		extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
+		c.extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
 	}
 
 	// Kill 0
-	kill(servers, replicas, 0)
+	killExt(c, 0)
 	time.Sleep(1 * time.Second)
 
 	for i := nKeys / 2; i < nKeys; i++ {
@@ -374,31 +454,31 @@ func TestLogFailureSimple(t *testing.T) {
 		key := t.Name() + strconv.Itoa(i)
 		value := strconv.Itoa(i)
 		values[key] = value
-		extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
+		c.extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
 	}
 	time.Sleep(2 * time.Second)
 
 	for i := 0; i < nKeys; i++ {
-		for r := range replicas {
+		for r := range c.replicas {
 			if r == 0 {
 				continue
 			}
-			resp, err := extClients[r].Get(context.Background(), &proto.GetReq{Key: replicas[r].log[i].Key})
+			resp, err := c.extClients[r].Get(context.Background(), &proto.GetReq{Key: c.replicas[r].log[i].Key})
 			if err != nil {
 				log.Fatal(err)
 			}
-			assert.Equal(t, values[replicas[r].log[i].Key], resp.Value, "Values should match")
+			assert.Equal(t, values[c.replicas[r].log[i].Key], resp.Value, "Values should match")
 		}
 	}
 
-	shutdown(append(servers, extServers...), replicas)
+	shutdown(append(c.servers, c.extServers...), c.replicas)
 }
 
 func TestLogFailureRestart(t *testing.T) {
 	// Log replication amidst failure and restart
 	addrs := []string{":6000", ":6010", ":6020"}
 	extAddrs := []string{":6100", ":6110", ":6120"}
-	servers, _, replicas, extClients, extServers := startup(addrs, extAddrs)
+	c := startup(addrs, extAddrs)
 
 	nKeys := 50
 	values := make(map[string]string)
@@ -408,11 +488,11 @@ func TestLogFailureRestart(t *testing.T) {
 		key := t.Name() + strconv.Itoa(i)
 		value := strconv.Itoa(i)
 		values[key] = value
-		extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
+		c.extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
 	}
 
 	// Kill 0
-	kill(servers, replicas, 0)
+	killExt(c, 0)
 	time.Sleep(1 * time.Second)
 
 	for i := nKeys / 3; i < 2*nKeys/3; i++ {
@@ -420,11 +500,11 @@ func TestLogFailureRestart(t *testing.T) {
 		key := t.Name() + strconv.Itoa(i)
 		value := strconv.Itoa(i)
 		values[key] = value
-		extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
+		c.extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
 	}
 
 	// Restart 0
-	restart(servers, replicas, addrs, 0)
+	restartExt(c, 0)
 	time.Sleep(1 * time.Second)
 
 	for i := 2 * nKeys / 3; i < nKeys; i++ {
@@ -432,20 +512,123 @@ func TestLogFailureRestart(t *testing.T) {
 		key := t.Name() + strconv.Itoa(i)
 		value := strconv.Itoa(i)
 		values[key] = value
-		extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
+		c.extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
 	}
 
 	time.Sleep(2 * time.Second)
 
 	for i := 0; i < nKeys; i++ {
-		for r := range replicas {
-			resp, err := extClients[r].Get(context.Background(), &proto.GetReq{Key: replicas[r].log[i].Key})
+		for r := range c.replicas {
+			resp, err := c.extClients[r].Get(context.Background(), &proto.GetReq{Key: c.replicas[r].log[i].Key})
 			if err != nil {
 				log.Fatal(err)
 			}
-			assert.Equal(t, values[replicas[r].log[i].Key], resp.Value, "Values should match")
+			assert.Equal(t, values[c.replicas[r].log[i].Key], resp.Value, "Values should match")
 		}
 	}
 
-	shutdown(append(servers, extServers...), replicas)
+	shutdown(append(c.servers, c.extServers...), c.replicas)
+}
+
+func TestLogFailureConcurrent(t *testing.T) {
+	// Concurrent failures and restarts
+	addrs := []string{":6000", ":6010", ":6020"}
+	extAddrs := []string{":6100", ":6110", ":6120"}
+	c := startup(addrs, extAddrs)
+
+	nKeys := 200
+	nConc := 5
+	values := make(map[string]string)
+	done := make(chan bool, nKeys)
+	stop := make(chan bool)
+
+	killed := -1
+	killMu := sync.RWMutex{}
+	go func() {
+		time.Sleep(2 * time.Second)
+		for {
+			select {
+			case <-stop:
+				break
+			default:
+				killMu.Lock()
+				r := rand.Intn(len(addrs))
+				killExt(c, r)
+				killed = r
+				time.Sleep(2 * time.Second)
+				killMu.Unlock()
+
+				time.Sleep(3 * time.Second)
+
+				killMu.Lock()
+				restartExt(c, r)
+				killed = -1
+				killMu.Unlock()
+				time.Sleep(7 * time.Second)
+			}
+		}
+	}()
+
+	mu := sync.Mutex{}
+	for i := 0; i < nConc; i++ {
+		go func(i int) {
+			for j := 0; j < nKeys/nConc; j++ {
+				killMu.RLock()
+				idx := j + i*nKeys/nConc
+				key := t.Name() + strconv.Itoa(idx)
+				value := strconv.Itoa(idx)
+				mu.Lock()
+				values[key] = value
+				mu.Unlock()
+
+				r := rand.Intn(len(addrs))
+				for r == killed {
+					r = rand.Intn(len(addrs))
+				}
+				_, err := c.extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				done <- true
+				killMu.RUnlock()
+				time.Sleep(200 * time.Millisecond)
+			}
+		}(i)
+	}
+	for i := 0; i < nKeys; i++ {
+		<-done
+	}
+	time.Sleep(3 * time.Second)
+
+	for i := 0; i < nConc; i++ {
+		go func(i int) {
+			for j := 0; j < nKeys/nConc; j++ {
+				killMu.RLock()
+				idx := j + i*nKeys/nConc
+
+				// for {
+				r := rand.Intn(len(addrs))
+				for r == killed {
+					r = rand.Intn(len(addrs))
+				}
+				key := c.replicas[r].log[idx].Key
+				resp, err := c.extClients[r].Get(context.Background(), &proto.GetReq{Key: key})
+				if err != nil {
+					log.Fatal(err)
+				}
+				assert.Equal(t, values[key], resp.Value, "Values should match")
+
+				done <- true
+				killMu.RUnlock()
+				time.Sleep(200 * time.Millisecond)
+			}
+		}(i)
+	}
+	for i := 0; i < nKeys; i++ {
+		<-done
+	}
+	stop <- true
+
+	shutdown(append(c.servers, c.extServers...), c.replicas)
 }
