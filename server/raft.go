@@ -114,7 +114,7 @@ func (r *Replica) run() {
 		if r.leader == r.id && t.Sub(r.lastPinged) > r.pingInterval {
 			// Send heart beats
 			r.lastPinged = t
-			r.heartbeat()
+			r.sync()
 		} else if r.leader != r.id && t.Sub(r.lastPinged) > r.timeout {
 			// Initiate new election
 			r.logger.Infof("%d: Initiating election term %d", r.id, r.term+1)
@@ -124,7 +124,6 @@ func (r *Replica) run() {
 		}
 
 		r.mu.Unlock()
-		time.Sleep(50 * time.Millisecond)
 	}
 }
 
@@ -188,12 +187,9 @@ func (r *Replica) heartbeat() {
 		if i == int(r.id) {
 			continue
 		}
-		go func(i int, p proto.ReplicaClient) {
-			_, err := p.HeartBeat(context.Background(), &proto.HeartBeatReq{Id: r.id, LastCommit: r.lastCommit, Term: r.term})
-			if err != nil {
-				// r.logger.Infof("%d: Error from %d: %s", r.id, i, err)
-			}
-		}(i, p)
+		go func(p proto.ReplicaClient) {
+			p.HeartBeat(context.Background(), &proto.HeartBeatReq{Id: r.id, LastCommit: r.lastCommit, Term: r.term})
+		}(p)
 	}
 }
 
@@ -222,3 +218,100 @@ func (r *Replica) execute() {
 		}
 	}
 }
+
+func (r *Replica) sync() {
+	// Sync logs with peers
+	for i, p := range r.peers {
+		if i == int(r.id) {
+			continue
+		}
+		var entries []*proto.Entry
+		go func(i int, p proto.ReplicaClient) {
+			for {
+				// If no errors, keep trying until log convergence
+				next := int64(r.nextIndex[i])
+				for n := next; n < int64(len(r.log)); n++ {
+					entries = append(entries, r.log[n])
+				}
+
+				req := &proto.AppendEntryReq{
+					Entries:    entries,
+					Id:         r.id,
+					LastCommit: r.lastCommit,
+					PreIndex:   -1,
+					PreTerm:    -1,
+					Term:       r.term,
+				}
+				if next != 0 {
+					req.PreIndex = next - 1
+					req.PreTerm = r.log[next-1].Term
+				}
+				// r.logger.Infof("%d: Sending AppendEntry to %d", r.id, i)
+				resp, err := p.AppendEntry(context.Background(), req)
+				if err == nil {
+					if resp.Ok {
+						break
+					} else {
+						r.nextIndex[i]--
+					}
+				} else {
+					break
+				}
+			}
+		}(i, p)
+	}
+}
+
+// func (r *Replica) sync() {
+// 	// Sync logs with peers
+// 	if len(r.log) == 0 {
+// 		return
+// 	}
+
+// 	done := make(chan bool, len(r.peers))
+// 	for i, p := range r.peers {
+// 		var entries []*proto.Entry
+// 		go func(i int, p proto.ReplicaClient) {
+// 			if i == int(r.id) {
+// 				done <- true
+// 			} else {
+// 				for {
+// 					// If no errors, keep trying until log convergence
+// 					next := int64(r.nextIndex[i])
+// 					for n := next; n < int64(len(r.log)); n++ {
+// 						entries = append(entries, r.log[n])
+// 					}
+
+// 					req := &proto.AppendEntryReq{
+// 						Entries:    entries,
+// 						Id:         r.id,
+// 						LastCommit: r.lastCommit,
+// 						PreIndex:   -1,
+// 						PreTerm:    -1,
+// 						Term:       r.term,
+// 					}
+// 					if next != 0 {
+// 						req.PreIndex = next - 1
+// 						req.PreTerm = r.log[next-1].Term
+// 					}
+// 					r.logger.Infof("%d: Sending AppendEntry to %d", r.id, i)
+// 					resp, err := p.AppendEntry(context.Background(), req)
+// 					if err == nil {
+// 						if resp.Ok {
+// 							break
+// 						} else {
+// 							r.nextIndex[i]--
+// 						}
+// 					} else {
+// 						break
+// 					}
+// 				}
+// 				done <- true
+// 			}
+// 		}(i, p)
+// 	}
+
+// 	for range r.peers {
+// 		<-done
+// 	}
+// }

@@ -88,7 +88,6 @@ func (s RaftServer) Put(ctx context.Context, req *proto.PutReq) (*proto.PutResp,
 
 	newIndex := int64(len(s.R.log))
 
-	var entries []*proto.Entry
 	newEntry := &proto.Entry{
 		Command: "PUT",
 		Index:   newIndex,
@@ -101,6 +100,7 @@ func (s RaftServer) Put(ctx context.Context, req *proto.PutReq) (*proto.PutResp,
 	// s.R.logger.Infof("%d: %v %d", s.R.id, s.R.log, len(s.R.log))
 
 	for i, p := range s.R.peers {
+		var entries []*proto.Entry
 		go func(i int, p proto.ReplicaClient) {
 			if i == int(s.R.id) {
 				done <- true
@@ -113,25 +113,17 @@ func (s RaftServer) Put(ctx context.Context, req *proto.PutReq) (*proto.PutResp,
 					}
 					entries = append(entries, newEntry)
 
-					var req *proto.AppendEntryReq
-					if next == 0 {
-						req = &proto.AppendEntryReq{
-							Entries:    entries,
-							Id:         s.R.id,
-							LastCommit: s.R.lastCommit,
-							PreIndex:   -1,
-							PreTerm:    -1,
-							Term:       s.R.term,
-						}
-					} else {
-						req = &proto.AppendEntryReq{
-							Entries:    entries,
-							Id:         s.R.id,
-							LastCommit: s.R.lastCommit,
-							PreIndex:   next - 1,
-							PreTerm:    s.R.log[next-1].Term,
-							Term:       s.R.term,
-						}
+					req := &proto.AppendEntryReq{
+						Entries:    entries,
+						Id:         s.R.id,
+						LastCommit: s.R.lastCommit,
+						PreIndex:   -1,
+						PreTerm:    -1,
+						Term:       s.R.term,
+					}
+					if next != 0 {
+						req.PreIndex = next - 1
+						req.PreTerm = s.R.log[next-1].Term
 					}
 					// s.R.logger.Infof("%d: Sending AppendEntry to %d", s.R.id, i)
 					resp, err := p.AppendEntry(context.Background(), req)

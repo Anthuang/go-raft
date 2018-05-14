@@ -445,7 +445,6 @@ func TestLogFailureSimple(t *testing.T) {
 		c.extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
 	}
 
-	// Kill 0
 	killExt(c, 0)
 	time.Sleep(1 * time.Second)
 
@@ -491,7 +490,6 @@ func TestLogFailureRestart(t *testing.T) {
 		c.extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
 	}
 
-	// Kill 0
 	killExt(c, 0)
 	time.Sleep(1 * time.Second)
 
@@ -503,7 +501,6 @@ func TestLogFailureRestart(t *testing.T) {
 		c.extClients[r].Put(context.Background(), &proto.PutReq{Key: key, Value: value})
 	}
 
-	// Restart 0
 	restartExt(c, 0)
 	time.Sleep(1 * time.Second)
 
@@ -601,13 +598,16 @@ func TestLogFailureConcurrent(t *testing.T) {
 	}
 	time.Sleep(3 * time.Second)
 
+	for _, r := range c.replicas {
+		assert.Equal(t, nKeys, len(r.log), "Log should contain all the updates")
+	}
+
 	for i := 0; i < nConc; i++ {
 		go func(i int) {
 			for j := 0; j < nKeys/nConc; j++ {
 				killMu.RLock()
 				idx := j + i*nKeys/nConc
 
-				// for {
 				r := rand.Intn(len(addrs))
 				for r == killed {
 					r = rand.Intn(len(addrs))
@@ -629,6 +629,32 @@ func TestLogFailureConcurrent(t *testing.T) {
 		<-done
 	}
 	stop <- true
+
+	shutdown(append(c.servers, c.extServers...), c.replicas)
+}
+
+func TestLogPassiveCatchUp(t *testing.T) {
+	// Logs are passively caught up by leader
+	addrs := []string{":6000", ":6010", ":6020"}
+	extAddrs := []string{":6100", ":6110", ":6120"}
+	c := startup(addrs, extAddrs)
+
+	nKeys := 10
+
+	killExt(c, 2)
+	time.Sleep(1 * time.Second)
+
+	for i := 0; i < nKeys; i++ {
+		c.extClients[0].Put(context.Background(), &proto.PutReq{
+			Key:   t.Name() + strconv.Itoa(i),
+			Value: strconv.Itoa(i),
+		})
+	}
+
+	restartExt(c, 2)
+	time.Sleep(3 * time.Second)
+
+	assert.Equal(t, nKeys, len(c.replicas[2].log), "Log should contain all the updates")
 
 	shutdown(append(c.servers, c.extServers...), c.replicas)
 }
