@@ -97,7 +97,6 @@ func (s RaftServer) Put(ctx context.Context, req *proto.PutReq) (*proto.PutResp,
 	}
 	// Append new entry to own log
 	s.R.log = append(s.R.log, newEntry)
-	// s.R.logger.Infof("%d: %v %d", s.R.id, s.R.log, len(s.R.log))
 
 	for i, p := range s.R.peers {
 		var entries []*proto.Entry
@@ -125,7 +124,6 @@ func (s RaftServer) Put(ctx context.Context, req *proto.PutReq) (*proto.PutResp,
 						req.PreIndex = next - 1
 						req.PreTerm = s.R.log[next-1].Term
 					}
-					// s.R.logger.Infof("%d: Sending AppendEntry to %d", s.R.id, i)
 					resp, err := p.AppendEntry(context.Background(), req)
 					if err == nil {
 						if resp.Ok {
@@ -157,7 +155,6 @@ func (s RaftServer) Put(ctx context.Context, req *proto.PutReq) (*proto.PutResp,
 		s.R.mu.Lock()
 		if succNum >= s.R.majority {
 			// Entry appended at majority, can apply operation
-			// s.R.logger.Infof("%d: Entry appended at majority", s.R.id)
 			s.R.lastCommit = newIndex
 			s.R.execute()
 

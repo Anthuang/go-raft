@@ -140,13 +140,10 @@ func (r *Replica) vote() {
 				}
 				done <- true
 			} else {
-				// r.logger.Infof("%d sending to %d", r.id, i)
 				_, err := p.Vote(context.Background(), &proto.VoteReq{Id: r.id, LastIndex: int64(len(r.log) - 1), Term: r.term})
 				if err != nil {
-					// r.logger.Infof("%d: %d returned failure for term %d", r.id, i, r.term)
 					done <- false
 				} else {
-					// r.logger.Infof("%d: %d returned success for term %d", r.id, i, r.term)
 					done <- true
 				}
 			}
@@ -179,6 +176,10 @@ func (r *Replica) vote() {
 		}
 	}
 	r.logger.Infof("%d: Election attempt failed", r.id)
+
+	r.mu.Unlock()
+	time.Sleep(50 * time.Millisecond)
+	r.mu.Lock()
 }
 
 func (r *Replica) heartbeat() {
@@ -212,7 +213,6 @@ func (r *Replica) execute() {
 			switch entry.Command {
 			case "PUT":
 				r.kvStore[entry.Key] = entry.Value
-				// r.logger.Infof("%d: PUT (%s: %s) command committed", r.id, entry.Key, entry.Value)
 			}
 			r.execUpTo++
 		}
@@ -246,7 +246,6 @@ func (r *Replica) sync() {
 					req.PreIndex = next - 1
 					req.PreTerm = r.log[next-1].Term
 				}
-				// r.logger.Infof("%d: Sending AppendEntry to %d", r.id, i)
 				resp, err := p.AppendEntry(context.Background(), req)
 				if err == nil {
 					if resp.Ok {
@@ -261,57 +260,3 @@ func (r *Replica) sync() {
 		}(i, p)
 	}
 }
-
-// func (r *Replica) sync() {
-// 	// Sync logs with peers
-// 	if len(r.log) == 0 {
-// 		return
-// 	}
-
-// 	done := make(chan bool, len(r.peers))
-// 	for i, p := range r.peers {
-// 		var entries []*proto.Entry
-// 		go func(i int, p proto.ReplicaClient) {
-// 			if i == int(r.id) {
-// 				done <- true
-// 			} else {
-// 				for {
-// 					// If no errors, keep trying until log convergence
-// 					next := int64(r.nextIndex[i])
-// 					for n := next; n < int64(len(r.log)); n++ {
-// 						entries = append(entries, r.log[n])
-// 					}
-
-// 					req := &proto.AppendEntryReq{
-// 						Entries:    entries,
-// 						Id:         r.id,
-// 						LastCommit: r.lastCommit,
-// 						PreIndex:   -1,
-// 						PreTerm:    -1,
-// 						Term:       r.term,
-// 					}
-// 					if next != 0 {
-// 						req.PreIndex = next - 1
-// 						req.PreTerm = r.log[next-1].Term
-// 					}
-// 					r.logger.Infof("%d: Sending AppendEntry to %d", r.id, i)
-// 					resp, err := p.AppendEntry(context.Background(), req)
-// 					if err == nil {
-// 						if resp.Ok {
-// 							break
-// 						} else {
-// 							r.nextIndex[i]--
-// 						}
-// 					} else {
-// 						break
-// 					}
-// 				}
-// 				done <- true
-// 			}
-// 		}(i, p)
-// 	}
-
-// 	for range r.peers {
-// 		<-done
-// 	}
-// }

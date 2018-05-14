@@ -43,10 +43,8 @@ func (s ReplicaServer) AppendEntry(ctx context.Context, req *proto.AppendEntryRe
 				s.R.log = append(s.R.log, make([]*proto.Entry, numNeed)...)
 			}
 			for _, e := range entries {
-				// s.R.logger.Infof("%d: %d %d %d", s.R.id, req.PreIndex, len(s.R.log), e.Index)
 				s.R.log[e.Index] = e
 			}
-			// s.R.logger.Infof("%d: %v %d", s.R.id, s.R.log, len(s.R.log))
 
 			return &proto.AppendEntryResp{Ok: true}, nil
 		}
@@ -68,7 +66,6 @@ func (s ReplicaServer) HeartBeat(ctx context.Context, req *proto.HeartBeatReq) (
 			s.R.lastCommit = req.LastCommit
 			s.R.execute()
 
-			// s.R.logger.Infof("%d: Received heartbeat from %d", s.R.id, req.Id)
 		}
 	}
 
@@ -83,13 +80,11 @@ func (s ReplicaServer) Vote(ctx context.Context, req *proto.VoteReq) (*proto.Vot
 	s.R.lastPinged = time.Now()
 
 	if !s.R.voted[req.Term] && req.Term >= s.R.term && req.LastIndex >= int64(len(s.R.log)-1) {
-		// s.R.logger.Infof("%d: Accepting vote request from %d for term %d", s.R.id, req.Id, req.Term)
 		s.R.leader = -1
 		s.R.term = req.Term
 		s.R.voted[req.Term] = true
 		return &proto.VoteResp{}, nil
 	}
 
-	// s.R.logger.Infof("%d: Rejecting vote request from %d for term %d", s.R.id, req.Id, req.Term)
 	return &proto.VoteResp{}, errors.New("Rejecting vote request")
 }
