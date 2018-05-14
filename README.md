@@ -9,11 +9,13 @@ Most of Raft functionality is implemented and tested, but small parts may be mis
 A sample config is given (config.txt) using localhost. Each line in the config is a new replica, and each line has a internal address and an external address, respectively.
 
 ### Server
-The server takes in two arguments, config path and replica id. The server will wait until all replicas are started before initialization is complete.
+The server takes in two arguments, config path and replica id. Initialization is complete when all servers are started.
 
+To start three localhost servers, use the config.txt provided and run `./bin/server` in three different terminals.
 ```
-$ go build -o bin/server cmd/server/server.go
 $ ./bin/server -config=config.txt -id=0
+$ ./bin/server -config=config.txt -id=1
+$ ./bin/server -config=config.txt -id=2
 ```
 
 ### Client
