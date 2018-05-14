@@ -23,7 +23,7 @@ var (
 
 func main() {
 	flag.Parse()
-	if *replicaID == -1 {
+	if *configPath == "" || *replicaID == -1 {
 		flag.Usage()
 		os.Exit(2)
 	}

@@ -35,7 +35,7 @@ type Replica struct {
 	initChannel chan bool
 }
 
-// NewReplica creates a new Replica object
+// NewReplica returns a new replica
 func NewReplica(id int64, peers []proto.ReplicaClient, peersAddrs []string, extPeers []proto.RaftClient, logger *zap.SugaredLogger) *Replica {
 	r := &Replica{
 		execUpTo:     -1,
@@ -105,8 +105,8 @@ func (r *Replica) init() {
 	r.logger.Infof("Done initializing node %d", r.id)
 }
 
+// Main replica logic
 func (r *Replica) run() {
-	// Main replica logic
 	for !r.shutdown {
 		r.mu.Lock()
 		t := time.Now()
@@ -127,8 +127,8 @@ func (r *Replica) run() {
 	}
 }
 
+// Vote for itself
 func (r *Replica) vote() {
-	// Vote for itself
 	done := make(chan bool)
 
 	for i, p := range r.peers {
@@ -182,8 +182,8 @@ func (r *Replica) vote() {
 	r.mu.Lock()
 }
 
+// Send heartbeat to followers
 func (r *Replica) heartbeat() {
-	// Send heartbeat to followers
 	for i, p := range r.peers {
 		if i == int(r.id) {
 			continue
@@ -194,15 +194,15 @@ func (r *Replica) heartbeat() {
 	}
 }
 
+// Set leader
 func (r *Replica) setLeader(id int64) {
-	// Set leader
 	if r.leader != id {
 		r.leader = id
 	}
 }
 
+// Execute committed entries
 func (r *Replica) execute() {
-	// Execute committed entries
 	if r.execUpTo < r.lastCommit {
 		for i := r.execUpTo + 1; i <= r.lastCommit; i++ {
 			if i >= int64(len(r.log)) {
@@ -219,8 +219,8 @@ func (r *Replica) execute() {
 	}
 }
 
+// Sync logs with peers
 func (r *Replica) sync() {
-	// Sync logs with peers
 	for i, p := range r.peers {
 		if i == int(r.id) {
 			continue
