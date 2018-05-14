@@ -21,7 +21,7 @@ $ ./bin/server -config=config.txt -id=2
 ### Client
 The client can be used by creating a client object using `client.NewClient(...)`. The client object requires two arguments, config path and preferred replica id. The preferred replica id is the replica that the client will contact first on all requests. This is usually the closest replica.
 
-An example usage is given in cmd/client/example_client.go.
+An example usage is given [here](https://github.com/Anthuang/go-raft/blob/master/cmd/client/example_client.go).
 
 ```
 $ go build -o bin/client cmd/client/example_client.go
